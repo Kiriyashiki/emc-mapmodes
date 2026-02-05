@@ -1,0 +1,96 @@
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend Thin"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-Thin.woff2") format("woff2");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend ExtraLight"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-ExtraLight.woff2") format("woff2");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend Light"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend Regular"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend Medium"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend SemiBold"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend Bold"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend ExtraBold"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lexend";
+  src: local("Lexend Black"),
+  url("https://assets.hainaut.xyz/fonts/Lexend-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Determination Mono';
+  src: local('Determination Mono'), url('./font/DTM-Mono.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "UD Digi Kyokasho NK-R";
+  src: local("UD Digi Kyokasho NK-R"),
+  url("https://assets.hainaut.xyz/fonts/UDDigiKyokashoNK-R.woff2") format("woff2");
+  unicode-range: U+3000-303F, U+3040-309F, U+30A0-30FF, U+4E00-9FFF, U+FF00-FFEF;
+}
+
+

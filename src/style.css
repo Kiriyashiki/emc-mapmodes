@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+html, body {
+  font-family: Lexend, "UD Digi Kyokasho NK-R", sans-serif;
+  height: 100%;
+  margin: 0;
+}
+
+.leaflet-container .leaflet-tile {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Dark Mode Popup */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #1a1a1a;
+  color: #ffffff;
+}
+
+.leaflet-popup-content {
+  font-family: Lexend, "UD Digi Kyokasho NK-R", sans-serif;
+  color: #ffffff;
+}
+
+.dr-shadow {
+  font-family: 'Determination Mono', monospace;
+  text-shadow: 1px 1px 0 #0F0F71;
+}
+
+.color-square {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  min-height: 12px;
+  margin: 0 6px;
+  border: 1px solid #ffffff;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.popup-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.mapmode-button {
+  cursor: pointer;
+  background-color: #2D005A;
+  border: 2px solid #816B53;
+}
+
+.mapmode-button:hover, .mapmode-button.active {
+  border: 2px solid #BAA38B;
+}
+
+.mmb-outline {
+  margin: 1px;
+  padding: 1px;
+  border: 2px dashed #816B53;
+}
+
+.mmb-outline:hover, .mapmode-button.active .mmb-outline {
+  border: 2px dashed #BAA38B;
+}
+
+.mmb-outline img {
+  background-color: #816B53;
+}
+
+.mmb-outline:hover img, .mapmode-button.active .mmb-outline img {
+  background-color: #BAA38B;
+}
