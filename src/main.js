@@ -495,15 +495,7 @@ function updateLegend() {
 
   if (gradient.length > 0) {
     gradient.forEach((step, index) => {
-      const nextStep = gradient[index - 1]; // Since gradient is sorted descending
       let label = `>= ${step.min}`;
-
-      // Optional: Show ranges instead of just min
-      // if (nextStep) {
-      //   label = `${step.min} - ${nextStep.min - 1}`;
-      // } else {
-      //   label = `>= ${step.min}`;
-      // }
 
       const row = document.createElement('div');
       row.className = 'flex items-center gap-2';
@@ -514,8 +506,7 @@ function updateLegend() {
       legendContent.appendChild(row);
     });
 
-    // Add the < min case (usually black or dark red)
-    const lastStep = gradient[gradient.length - 1];
+    const lastStep = gradient.at(-1);
     if (lastStep && lastStep.min > 1) {
       const row = document.createElement('div');
       row.className = 'flex items-center gap-2';
@@ -539,6 +530,7 @@ function minifyHTML(html) {
 }
 
 function extractPopup(popup) {
+  // Big scary regex monster
   const popupRegex = /<div class="infowindow"><span .+?>(?:<a href=.+?>|)(.+?)(?:<\/a>|)(?: \((?:<a href=.+?>|)(.+?)(?:<\/a>|)\)|)<\/span><br><i>(.+?|)<\/i>.+?Mayor: <b>(.+?)<\/b>.+?Councillors: <b>(.+?)<\/b>.+?Founded: <b>(.+?)<\/b>.+?PVP: <b>(.+?)<\/b>.+?Public: <b>(.+?)<\/b>.+?<\/summary>(.+?)<\/details>.+?<\/div>/;
 
   popup = minifyHTML(popup);
