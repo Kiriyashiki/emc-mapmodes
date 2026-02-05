@@ -17,11 +17,19 @@
 
     <div id="legend-wrapper" class="fixed bottom-4 right-4 z-1000 flex flex-col items-end gap-2">
       <div id="legend-popup" style="background-color: #0E1119; display: none;" class="text-white p-3 rounded shadow max-h-[60vh] overflow-y-auto w-64 text-sm">
-        <h3 class="font-bold mb-2 text-lg border-b border-gray-600 pb-1">Legend</h3>
+        <h3 id="legend-title" class="font-bold mb-2 text-lg border-b border-gray-600 pb-1">Legend</h3>
         <div id="legend-content" class="flex flex-col gap-1"></div>
       </div>
       <button id="legend-btn" style="background-color: #0E1119;" class="text-white px-3 py-2 rounded shadow font-medium hover:opacity-90 transition-opacity">
         Legend
+      </button>
+    </div>
+
+    <div id="lang-wrapper" class="fixed top-4 right-4 z-1000 flex flex-col items-end gap-2">
+      <div id="lang-popup" style="background-color: #0E1119; display: none;" class="text-white p-2 rounded shadow w-32 text-sm flex flex-col gap-1">
+      </div>
+      <button id="lang-btn" style="background-color: #0E1119;" class="text-white px-3 py-2 rounded shadow font-medium hover:opacity-90 transition-opacity">
+        Language
       </button>
     </div>
 

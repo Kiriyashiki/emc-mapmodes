@@ -1,12 +1,13 @@
 import './font.css'
 import './style.css'
 import {
-  POPULATION_GRADIENT,
-  NATION_POPULATION_GRADIENT,
   CLAIMS_GRADIENT,
+  DENSITY_STOPS,
   NATION_CLAIMS_GRADIENT,
-  DENSITY_STOPS
+  NATION_POPULATION_GRADIENT,
+  POPULATION_GRADIENT
 } from './gradients.js';
+import {translations} from "./tl.js";
 
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
@@ -55,19 +56,42 @@ const layerGroups = {
   density: L.layerGroup()
 };
 
-const layerNames = {
-  default: "Political",
-  population: "Population",
-  claims: "Claims",
-  nationPopulation: "Nation Population",
-  nationClaims: "Nation Claims",
-  founded: "Foundation Date",
-  density: "Density"
+function getInitialLanguage() {
+  const storedLang = localStorage.getItem('emc-mapmodes-lang');
+  if (storedLang && translations[storedLang]) {
+    return storedLang;
+  }
+
+  const browserLangs = navigator.languages || [navigator.language || 'en'];
+  for (const lang of browserLangs) {
+    if (translations[lang]) return lang;
+    const baseLang = lang.split('-')[0];
+    if (translations[baseLang]) return baseLang;
+  }
+
+  return 'en';
+}
+
+let currentLang = getInitialLanguage();
+
+function t(key) {
+  return translations[currentLang][key] || key;
+}
+
+const layerKeys = {
+  default: "political",
+  population: "population",
+  claims: "claims",
+  nationPopulation: "nationPopulation",
+  nationClaims: "nationClaims",
+  founded: "founded",
+  density: "density"
 };
 
 let currentMode = 'default';
 let minDateGlobal = Infinity;
 let maxDateGlobal = -Infinity;
+let processedMarkersData = []; // Store processed data to re-render popups on language change
 
 function getColor(val, grad) {
   return grad.find(s => val >= s.min)?.color || "#000000";
@@ -117,6 +141,8 @@ fetchMarkers()
     processMarkers(layer);
     setupControls();
     setupLegend();
+    setupLanguageSelector();
+    updateUIText();
   })
   .catch(error => console.error('Error loading markers:', error));
 
@@ -176,23 +202,29 @@ function processMarkers(layer) {
   minDateGlobal = minDate;
   maxDateGlobal = maxDate;
 
-  processed.forEach(item => {
-    // Calculate colors
-    const popColor = getColor(item.pop, POPULATION_GRADIENT);
-
+  // Store processed data for re-rendering
+  processedMarkersData = processed.map(item => {
     let nationPop = 0;
-    let nationPopColor = "#606060";
     let nationClaims = 0;
-    let nationClaimsColor = "#606060";
-
     if (item.popupData.nation) {
       nationPop = nationData[item.popupData.nation]["population"] || 0;
-      nationPopColor = getColor(nationPop, NATION_POPULATION_GRADIENT);
-
       nationClaims = nationData[item.popupData.nation]["claims"] || 0;
-      nationClaimsColor = getColor(nationClaims, NATION_CLAIMS_GRADIENT);
     }
+    return {...item, nationPop, nationClaims};
+  });
 
+  renderLayers();
+}
+
+function renderLayers() {
+  // Clear existing layers
+  Object.values(layerGroups).forEach(group => group.clearLayers());
+
+  processedMarkersData.forEach(item => {
+    // Calculate colors
+    const popColor = getColor(item.pop, POPULATION_GRADIENT);
+    const nationPopColor = item.popupData.nation ? getColor(item.nationPop, NATION_POPULATION_GRADIENT) : "#606060";
+    const nationClaimsColor = item.popupData.nation ? getColor(item.nationClaims, NATION_CLAIMS_GRADIENT) : "#606060";
     const claimColor = getColor(item.area, CLAIMS_GRADIENT);
 
     const density = item.area > 0 ? item.pop / item.area : 0;
@@ -200,23 +232,11 @@ function processMarkers(layer) {
 
     let foundedColor = "#000000";
     if (item.foundedTs !== null) {
-      foundedColor = getDateColor(item.foundedTs, minDate, maxDate);
+      foundedColor = getDateColor(item.foundedTs, minDateGlobal, maxDateGlobal);
     }
 
     // Create Popup Content
-    const popupContent = `
-      <div class="infowindow">
-        <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${item.popupData.name}</span><br>
-        <div class="popup-row">Population: <span class="color-square" style="background-color:${popColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.pop}</span></div>
-        <div class="popup-row">Claims: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)}</span></div>
-        <div class="popup-row">Density: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">pop/chunk</span></div>
-        <div class="popup-row">Founded: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.popupData.founded}</span></div>
-        <br>
-        ${item.popupData.nation ? `Nation: <b class="dr-shadow" style="font-size: 1.1em;">${item.popupData.nation}</b><br>` : ''}
-        <div class="popup-row">Nation Claims: <span class="color-square" style="background-color:${nationClaimsColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(nationClaims)}</span></div>
-        <div class="popup-row">Nation Pop: <span class="color-square" style="background-color:${nationPopColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${nationPop}</span></div>
-      </div>
-    `;
+    const popupContent = getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density);
 
     // Default Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
@@ -269,6 +289,22 @@ function processMarkers(layer) {
   });
 }
 
+function getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density) {
+  return `
+      <div class="infowindow">
+        <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${item.popupData.name}</span><br>
+        <div class="popup-row">${t('population')}: <span class="color-square" style="background-color:${popColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.pop}</span></div>
+        <div class="popup-row">${t('claims')}: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)}</span></div>
+        <div class="popup-row">${t('density')}: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">${t('popChunk')}</span></div>
+        <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.popupData.founded}</span></div>
+        <br>
+        ${item.popupData.nation ? `${t('nation')}: <b class="dr-shadow" style="font-size: 1.1em;">${item.popupData.nation}</b><br>` : ''}
+        <div class="popup-row">${t('nationClaimsLabel')}: <span class="color-square" style="background-color:${nationClaimsColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.nationClaims)}</span></div>
+        <div class="popup-row">${t('nationPopLabel')}: <span class="color-square" style="background-color:${nationPopColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.nationPop}</span></div>
+      </div>
+    `;
+}
+
 function createPolygon(latlngs, marker, popupContent, style) {
   const poly = L.polygon(latlngs, {
     weight: marker.weight,
@@ -291,10 +327,10 @@ function setupControls() {
   Object.keys(layerGroups).forEach(key => {
     const button = document.createElement('div');
     const imgUrl = new URL(`./img/${key.toLowerCase()}.png`, import.meta.url).href;
-    const name = layerNames[key] || key;
+    const name = t(layerKeys[key]);
     button.innerHTML = `<div class="mmb-outline"><img src="${imgUrl}" alt="${name}" title="${name}" /></div>`
     button.className = "mapmode-button";
-    if (key === 'default') {
+    if (key === currentMode) {
       button.classList.add('active');
       if (modeLabel) modeLabel.innerText = name;
     }
@@ -302,7 +338,7 @@ function setupControls() {
       switchLayer(key);
       document.querySelectorAll('.mapmode-button').forEach(btn => btn.classList.remove('active'));
       button.classList.add('active');
-      if (modeLabel) modeLabel.innerText = name;
+      if (modeLabel) modeLabel.innerText = t(layerKeys[key]);
       updateLegend();
     };
     controlsDiv.appendChild(button);
@@ -335,6 +371,74 @@ function setupLegend() {
   }
 }
 
+function setupLanguageSelector() {
+  const langBtn = document.getElementById('lang-btn');
+  const langPopup = document.getElementById('lang-popup');
+
+  if (langBtn && langPopup) {
+    langBtn.onclick = () => {
+      if (langPopup.style.display === 'none') {
+        langPopup.style.display = 'flex';
+      } else {
+        langPopup.style.display = 'none';
+      }
+    };
+
+    // Populate languages
+    Object.keys(translations).forEach(lang => {
+      const langName = translations[lang].name;
+      const btn = document.createElement('button');
+      btn.className = "text-left px-2 py-1 hover:bg-gray-700 rounded w-full";
+      btn.innerText = langName;
+      if (lang === currentLang) {
+        btn.classList.add('font-bold');
+      }
+      btn.onclick = () => {
+        changeLanguage(lang);
+        langPopup.style.display = 'none';
+      };
+      langPopup.appendChild(btn);
+    });
+  }
+}
+
+function changeLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('emc-mapmodes-lang', lang);
+
+  // Update UI
+  updateUIText();
+  setupControls(); // Re-render controls to update tooltips/names
+  updateLegend();
+  renderLayers(); // Re-render layers to update popup content
+
+  // Update language selector active state
+  const langPopup = document.getElementById('lang-popup');
+  if (langPopup) {
+    Array.from(langPopup.children).forEach(btn => {
+      if (btn.innerText === lang.toUpperCase()) {
+        btn.classList.add('font-bold');
+      } else {
+        btn.classList.remove('font-bold');
+      }
+    });
+  }
+}
+
+function updateUIText() {
+  const legendBtn = document.getElementById('legend-btn');
+  if (legendBtn) legendBtn.innerText = t('legend');
+
+  const legendTitle = document.getElementById('legend-title');
+  if (legendTitle) legendTitle.innerText = t('legend');
+
+  const langBtn = document.getElementById('lang-btn');
+  if (langBtn) langBtn.innerText = t('language');
+
+  const modeLabel = document.getElementById('mode-label');
+  if (modeLabel) modeLabel.innerText = t(layerKeys[currentMode]);
+}
+
 function updateLegend() {
   const legendContent = document.getElementById('legend-content');
   if (!legendContent) return;
@@ -342,7 +446,7 @@ function updateLegend() {
   legendContent.innerHTML = '';
 
   if (currentMode === 'default') {
-    legendContent.innerHTML = '<div class="text-gray-400 italic">No legend available for Political mode</div>';
+    legendContent.innerHTML = `<div class="text-gray-400 italic">${t('noLegend')}</div>`;
     return;
   }
 
@@ -350,17 +454,17 @@ function updateLegend() {
     // Gradient for dates
     const minDateStr = new Date(minDateGlobal).toLocaleDateString();
     const maxDateStr = new Date(maxDateGlobal).toLocaleDateString();
-    
+
     legendContent.innerHTML = `
       <div class="flex flex-col gap-1">
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: hsl(240, 100%, 50%)"></div>
-          <span>Oldest (${minDateStr})</span>
+          <span>${t('oldest')} (${minDateStr})</span>
         </div>
         <div class="h-20 w-4 ml-0.5 my-1" style="background: linear-gradient(to bottom, rgba(0, 0, 255, 1) 0%, rgba(72, 218, 247, 1) 25%, rgba(14, 255, 10, 1) 50%, rgba(251, 255, 0, 1) 75%, rgba(255, 0, 0, 1) 100%)"></div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: hsl(0, 100%, 50%)"></div>
-          <span>Newest (${maxDateStr})</span>
+          <span>${t('newest')} (${maxDateStr})</span>
         </div>
       </div>
     `;
@@ -370,8 +474,8 @@ function updateLegend() {
   if (currentMode === 'density') {
     DENSITY_STOPS.forEach((stop, index) => {
       const color = `rgb(${stop.color.r},${stop.color.g},${stop.color.b})`;
-      let label = `${stop.val} pop/chunk`;
-      
+      let label = `${stop.val} ${t('popChunk')}`;
+
       const row = document.createElement('div');
       row.className = 'flex items-center gap-2';
       row.innerHTML = `
@@ -393,7 +497,7 @@ function updateLegend() {
     gradient.forEach((step, index) => {
       const nextStep = gradient[index - 1]; // Since gradient is sorted descending
       let label = `>= ${step.min}`;
-      
+
       // Optional: Show ranges instead of just min
       // if (nextStep) {
       //   label = `${step.min} - ${nextStep.min - 1}`;
@@ -409,17 +513,17 @@ function updateLegend() {
       `;
       legendContent.appendChild(row);
     });
-    
+
     // Add the < min case (usually black or dark red)
     const lastStep = gradient[gradient.length - 1];
     if (lastStep && lastStep.min > 1) {
-       const row = document.createElement('div');
-       row.className = 'flex items-center gap-2';
-       row.innerHTML = `
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2';
+      row.innerHTML = `
          <div class="w-4 h-4 border border-white" style="background-color: #1F0000"></div>
          <span>< ${lastStep.min}</span>
        `;
-       legendContent.appendChild(row);
+      legendContent.appendChild(row);
     }
   }
 }
