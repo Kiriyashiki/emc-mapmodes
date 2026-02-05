@@ -10,6 +10,24 @@
   </head>
   <body class="m-0 p-0">
     <div id="map" class="h-screen w-screen"></div>
+
+    <!-- Loading/Error Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-[#0E1119] text-white p-6 rounded-lg shadow-xl border border-gray-700 max-w-md text-center">
+        <div id="loading-content">
+          <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-white mx-auto mb-4"></div>
+          <p id="loading-text" class="text-lg font-medium">Loading map data...</p>
+        </div>
+        <div id="error-content" class="hidden">
+          <div class="text-red-500 text-4xl mb-2">⚠️</div>
+          <p id="error-text" class="text-lg font-medium mb-4">Error loading map data.</p>
+          <button onclick="window.location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors">
+            Retry
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="ui-wrapper" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-1000 flex flex-col items-center gap-2">
       <div id="mode-label" style="background-color: #0E1119;" class="text-white px-3 py-1 rounded shadow font-medium">Political</div>
       <div id="controls" style="background-color: #0E1119;" class="p-1.5 rounded shadow flex gap-1"></div>

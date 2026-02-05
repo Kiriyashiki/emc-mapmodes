@@ -20,7 +20,9 @@ export const translations = {
     public: "Public",
     nation: "Nation",
     nationClaimsLabel: "Nation Claims",
-    nationPopLabel: "Nation Pop"
+    nationPopLabel: "Nation Pop",
+    loading: "Loading map data...",
+    error: "Error loading map data. Please try again later."
   },
   ja: {
     name: '日本語',
@@ -43,7 +45,9 @@ export const translations = {
     public: "パブリック",
     nation: "国",
     nationClaimsLabel: "国のチャンク",
-    nationPopLabel: "国の人口"
+    nationPopLabel: "国の人口",
+    loading: "マップデータを読み込み中...",
+    error: "マップデータの読み込み中にエラーが発生しました。後でもう一度お試しください。"
   },
   fr: {
     name: 'Français',
@@ -66,6 +70,8 @@ export const translations = {
     public: "Public",
     nation: "Nation",
     nationClaimsLabel: "Territoire Nation",
-    nationPopLabel: "Pop Nation"
+    nationPopLabel: "Pop Nation",
+    loading: "Chargement des données de la carte...",
+    error: "Erreur lors du chargement des données de la carte. Veuillez réessayer plus tard."
   }
 };

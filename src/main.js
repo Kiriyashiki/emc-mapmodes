@@ -128,6 +128,9 @@ function getDensityColor(val) {
 // Add default layer to map initially
 layerGroups.default.addTo(map);
 
+// Initialize UI text immediately
+updateUIText();
+
 // Fetch and display markers
 fetchMarkers()
   .then(data => {
@@ -143,12 +146,34 @@ fetchMarkers()
     setupLegend();
     setupLanguageSelector();
     updateUIText();
+    
+    // Hide loading overlay
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      loadingOverlay.style.display = 'none';
+    }
   })
-  .catch(error => console.error('Error loading markers:', error));
+  .catch(error => {
+    console.error('Error loading markers:', error);
+    
+    // Show error state
+    const loadingContent = document.getElementById('loading-content');
+    const errorContent = document.getElementById('error-content');
+    const errorText = document.getElementById('error-text');
+    
+    if (loadingContent) loadingContent.style.display = 'none';
+    if (errorContent) errorContent.style.display = 'block';
+    if (errorText) errorText.innerText = t('error');
+  });
 
 function fetchMarkers() {
   return fetch(`${baseUrlCors}/markers.json`)
-    .then(response => response.json());
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    });
 }
 
 function processMarkers(layer) {
@@ -437,6 +462,12 @@ function updateUIText() {
 
   const modeLabel = document.getElementById('mode-label');
   if (modeLabel) modeLabel.innerText = t(layerKeys[currentMode]);
+
+  const loadingText = document.getElementById('loading-text');
+  if (loadingText) loadingText.innerText = t('loading');
+
+  const errorText = document.getElementById('error-text');
+  if (errorText) errorText.innerText = t('error');
 }
 
 function updateLegend() {
