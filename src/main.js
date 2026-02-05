@@ -263,6 +263,10 @@ function renderLayers() {
     // Create Popup Content
     const popupContent = getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density);
 
+    if (!item.marker.color) {
+      item.marker.color = "#3457C1";
+    }
+
     // Default Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
       color: item.marker.color,
