@@ -1,56 +1,76 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EMC Mapmodes</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  </head>
-  <body class="m-0 p-0">
-    <div id="map" class="h-screen w-screen"></div>
+<head>
+  <meta charset="UTF-8"/>
+  <link href="/icon.png" rel="icon" type="image/png"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>EMC Mapmodes</title>
+  <link crossorigin="" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" rel="stylesheet"/>
+  <script crossorigin=""
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="m-0 p-0">
+<div class="h-screen w-screen" id="map"></div>
 
-    <!-- Loading/Error Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 z-2000 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div class="bg-[#0E1119] text-white p-6 rounded-lg shadow-xl border border-gray-700 max-w-md text-center">
-        <div id="loading-content">
-          <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-white mx-auto mb-4"></div>
-          <p id="loading-text" class="text-lg font-medium">Loading map data...</p>
-        </div>
-        <div id="error-content" class="hidden">
-          <div class="text-red-500 text-4xl mb-2">⚠️</div>
-          <p id="error-text" class="text-lg font-medium mb-4">Error loading map data.</p>
-          <button onclick="window.location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors">
-            Retry
-          </button>
-        </div>
-      </div>
+<!-- Loading/Error Overlay -->
+<div class="fixed inset-0 z-2000 flex items-center justify-center bg-black/50 backdrop-blur-sm" id="loading-overlay">
+  <div class="bg-[#0E1119] text-white p-6 rounded-lg shadow-xl border border-gray-700 max-w-md text-center">
+    <div id="loading-content">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-white mx-auto mb-4"></div>
+      <p class="text-lg font-medium" id="loading-text">Loading map data...</p>
     </div>
-
-    <div id="ui-wrapper" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-1000 flex flex-col items-center gap-2">
-      <div id="mode-label" style="background-color: #0E1119;" class="text-white px-3 py-1 rounded shadow font-medium">Political</div>
-      <div id="controls" style="background-color: #0E1119;" class="p-1.5 rounded shadow flex gap-1"></div>
-    </div>
-
-    <div id="legend-wrapper" class="fixed bottom-4 right-4 z-1000 flex flex-col items-end gap-2">
-      <div id="legend-popup" style="background-color: #0E1119; display: none;" class="text-white p-3 rounded shadow max-h-[60vh] overflow-y-auto w-64 text-sm">
-        <h3 id="legend-title" class="font-bold mb-2 text-lg border-b border-gray-600 pb-1">Legend</h3>
-        <div id="legend-content" class="flex flex-col gap-1"></div>
-      </div>
-      <button id="legend-btn" style="background-color: #0E1119;" class="text-white px-3 py-2 rounded shadow font-medium hover:opacity-90 transition-opacity">
-        Legend
+    <div class="hidden" id="error-content">
+      <div class="text-red-500 text-4xl mb-2">⚠️</div>
+      <p class="text-lg font-medium mb-4" id="error-text">Error loading map data.</p>
+      <button class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              onclick="window.location.reload()">
+        Retry
       </button>
     </div>
+  </div>
+</div>
 
-    <div id="lang-wrapper" class="fixed top-4 right-4 z-1000 flex flex-col items-end gap-2">
-      <div id="lang-popup" style="background-color: #0E1119; display: none;" class="text-white p-2 rounded shadow w-32 text-sm flex flex-col gap-1">
-      </div>
-      <button id="lang-btn" style="background-color: #0E1119;" class="text-white px-3 py-2 rounded shadow font-medium hover:opacity-90 transition-opacity">
-        Language
-      </button>
+<div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-1000 flex flex-col items-center gap-2" id="ui-wrapper">
+  <div class="text-white px-3 py-1 rounded shadow font-medium" id="mode-label" style="background-color: #0E1119;">
+    Political
+  </div>
+  <div class="p-1.5 rounded shadow flex gap-1" id="controls" style="background-color: #0E1119;"></div>
+</div>
+
+<div class="fixed bottom-4 right-4 z-1000 flex flex-col items-end gap-2" id="legend-wrapper">
+  <div class="text-white p-3 rounded shadow max-h-[60vh] overflow-y-auto w-64 text-sm" id="legend-popup"
+       style="background-color: #0E1119; display: none;">
+    <h3 class="font-bold mb-2 text-lg border-b border-gray-600 pb-1" id="legend-title">Legend</h3>
+    <div class="flex flex-col gap-1" id="legend-content"></div>
+  </div>
+  <button class="text-white px-3 py-2 rounded shadow font-medium hover:opacity-90 transition-opacity" id="legend-btn"
+          style="background-color: #0E1119;">
+    Legend
+  </button>
+</div>
+
+<div class="fixed top-4 right-4 z-1000 flex flex-col items-end gap-2" id="settings-wrapper">
+  <div class="text-white p-3 rounded shadow w-48 text-sm flex flex-col gap-3" id="settings-popup"
+       style="background-color: #0E1119; display: none;">
+    <div>
+      <h4 class="font-bold mb-1 border-b border-gray-600 pb-1" id="lang-label">Language</h4>
+      <div class="flex flex-col gap-1" id="lang-options"></div>
     </div>
-
-    <script type="module" src="/src/main.js"></script>
-  </body>
+    <div>
+      <h4 class="font-bold mb-1 border-b border-gray-600 pb-1" id="grid-label">Grid</h4>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input class="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500 bg-gray-700 border-gray-600" id="grid-toggle"
+               type="checkbox">
+        <span id="grid-text">Show Chunk Grid</span>
+      </label>
+    </div>
+  </div>
+  <button class="text-white px-3 py-2 rounded shadow font-medium hover:opacity-90 transition-opacity" id="settings-btn"
+          style="background-color: #0E1119;">
+    Settings
+  </button>
+</div>
+<script src="/src/main.js" type="module"></script>
+</body>
 </html>

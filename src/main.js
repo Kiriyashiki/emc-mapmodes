@@ -45,6 +45,67 @@ L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
   attribution: 'Map Data <a href="https://map.earthmc.net/">EMC</a>'
 }).addTo(map);
 
+// Grid Layer
+const GridLayer = L.GridLayer.extend({
+  createTile: function(coords) {
+    const tile = document.createElement('canvas');
+    const size = this.getTileSize();
+    tile.width = size.x;
+    tile.height = size.y;
+
+    const ctx = tile.getContext('2d');
+    
+    // Calculate grid size based on zoom level
+    // At maxNativeZoom (3), 1 pixel = 1 block
+    // We want 16x16 block grid
+    const zoomScale = Math.pow(2, coords.z - maxNativeZoom);
+    const blockSize = 16 * zoomScale;
+    const bigBlockSize = 512 * zoomScale;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+
+    // Draw 16x16 grid
+    if (blockSize >= 4) { // Only draw if grid is visible enough
+        ctx.beginPath();
+        for (let x = 0; x <= size.x; x += blockSize) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, size.y);
+        }
+        for (let y = 0; y <= size.y; y += blockSize) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(size.x, y);
+        }
+        ctx.stroke();
+    }
+
+    // Draw 512x512 grid (thicker)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    const tileX = coords.x * size.x;
+    const tileY = coords.y * size.y;
+
+    const startX = (bigBlockSize - (((tileX % bigBlockSize) + bigBlockSize) % bigBlockSize)) % bigBlockSize;
+    const startY = (bigBlockSize - (((tileY % bigBlockSize) + bigBlockSize) % bigBlockSize)) % bigBlockSize;
+    
+    for (let x = startX; x <= size.x; x += bigBlockSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, size.y);
+    }
+    for (let y = startY; y <= size.y; y += bigBlockSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(size.x, y);
+    }
+    ctx.stroke();
+
+    return tile;
+  }
+});
+
+const gridLayer = new GridLayer({tileSize: tileSize, minZoom: minZoom, maxZoom: maxZoom});
+
 // Layer Groups
 const layerGroups = {
   default: L.layerGroup(),
@@ -144,7 +205,7 @@ fetchMarkers()
     processMarkers(layer);
     setupControls();
     setupLegend();
-    setupLanguageSelector();
+    setupSettings();
     updateUIText();
     
     // Hide loading overlay
@@ -400,34 +461,50 @@ function setupLegend() {
   }
 }
 
-function setupLanguageSelector() {
-  const langBtn = document.getElementById('lang-btn');
-  const langPopup = document.getElementById('lang-popup');
+function setupSettings() {
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPopup = document.getElementById('settings-popup');
+  const langOptions = document.getElementById('lang-options');
+  const gridToggle = document.getElementById('grid-toggle');
 
-  if (langBtn && langPopup) {
-    langBtn.onclick = () => {
-      if (langPopup.style.display === 'none') {
-        langPopup.style.display = 'flex';
+  if (settingsBtn && settingsPopup) {
+    settingsBtn.onclick = () => {
+      if (settingsPopup.style.display === 'none') {
+        settingsPopup.style.display = 'flex';
       } else {
-        langPopup.style.display = 'none';
+        settingsPopup.style.display = 'none';
       }
     };
 
     // Populate languages
-    Object.keys(translations).forEach(lang => {
-      const langName = translations[lang].name;
-      const btn = document.createElement('button');
-      btn.className = "text-left px-2 py-1 hover:bg-gray-700 rounded w-full";
-      btn.innerText = langName;
-      if (lang === currentLang) {
-        btn.classList.add('font-bold');
-      }
-      btn.onclick = () => {
-        changeLanguage(lang);
-        langPopup.style.display = 'none';
-      };
-      langPopup.appendChild(btn);
-    });
+    if (langOptions) {
+        langOptions.innerHTML = '';
+        Object.keys(translations).forEach(lang => {
+          const langName = translations[lang].name;
+          const btn = document.createElement('button');
+          btn.className = "text-left px-2 py-1 hover:bg-gray-700 rounded w-full";
+          btn.innerText = langName;
+          if (lang === currentLang) {
+            btn.classList.add('font-bold');
+          }
+          btn.onclick = () => {
+            changeLanguage(lang);
+            // Don't close popup, just update UI
+          };
+          langOptions.appendChild(btn);
+        });
+    }
+    
+    // Grid Toggle
+    if (gridToggle) {
+        gridToggle.onchange = (e) => {
+            if (e.target.checked) {
+                gridLayer.addTo(map);
+            } else {
+                map.removeLayer(gridLayer);
+            }
+        };
+    }
   }
 }
 
@@ -442,10 +519,10 @@ function changeLanguage(lang) {
   renderLayers(); // Re-render layers to update popup content
 
   // Update language selector active state
-  const langPopup = document.getElementById('lang-popup');
-  if (langPopup) {
-    Array.from(langPopup.children).forEach(btn => {
-      if (btn.innerText === lang.toUpperCase()) {
+  const langOptions = document.getElementById('lang-options');
+  if (langOptions) {
+    Array.from(langOptions.children).forEach(btn => {
+      if (btn.innerText === translations[lang].name) {
         btn.classList.add('font-bold');
       } else {
         btn.classList.remove('font-bold');
@@ -461,8 +538,17 @@ function updateUIText() {
   const legendTitle = document.getElementById('legend-title');
   if (legendTitle) legendTitle.innerText = t('legend');
 
-  const langBtn = document.getElementById('lang-btn');
-  if (langBtn) langBtn.innerText = t('language');
+  const settingsBtn = document.getElementById('settings-btn');
+  if (settingsBtn) settingsBtn.innerText = t('settings');
+  
+  const langLabel = document.getElementById('lang-label');
+  if (langLabel) langLabel.innerText = t('language');
+  
+  const gridLabel = document.getElementById('grid-label');
+  if (gridLabel) gridLabel.innerText = t('chunkGrid');
+
+  const gridText = document.getElementById('grid-text');
+  if (gridText) gridText.innerText = t('chunkGrid');
 
   const modeLabel = document.getElementById('mode-label');
   if (modeLabel) modeLabel.innerText = t(layerKeys[currentMode]);
