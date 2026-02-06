@@ -47,14 +47,14 @@ L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
 
 // Grid Layer
 const GridLayer = L.GridLayer.extend({
-  createTile: function(coords) {
+  createTile: function (coords) {
     const tile = document.createElement('canvas');
     const size = this.getTileSize();
     tile.width = size.x;
     tile.height = size.y;
 
     const ctx = tile.getContext('2d');
-    
+
     // Calculate grid size based on zoom level
     // At maxNativeZoom (3), 1 pixel = 1 block
     // We want 16x16 block grid
@@ -67,36 +67,36 @@ const GridLayer = L.GridLayer.extend({
 
     // Draw 16x16 grid
     if (blockSize >= 4) { // Only draw if grid is visible enough
-        ctx.beginPath();
-        for (let x = 0; x <= size.x; x += blockSize) {
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, size.y);
-        }
-        for (let y = 0; y <= size.y; y += blockSize) {
-            ctx.moveTo(0, y);
-            ctx.lineTo(size.x, y);
-        }
-        ctx.stroke();
+      ctx.beginPath();
+      for (let x = 0; x <= size.x; x += blockSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, size.y);
+      }
+      for (let y = 0; y <= size.y; y += blockSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(size.x, y);
+      }
+      ctx.stroke();
     }
 
     // Draw 512x512 grid (thicker)
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    
+
     const tileX = coords.x * size.x;
     const tileY = coords.y * size.y;
 
     const startX = (bigBlockSize - (((tileX % bigBlockSize) + bigBlockSize) % bigBlockSize)) % bigBlockSize;
     const startY = (bigBlockSize - (((tileY % bigBlockSize) + bigBlockSize) % bigBlockSize)) % bigBlockSize;
-    
+
     for (let x = startX; x <= size.x; x += bigBlockSize) {
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, size.y);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, size.y);
     }
     for (let y = startY; y <= size.y; y += bigBlockSize) {
-        ctx.moveTo(0, y);
-        ctx.lineTo(size.x, y);
+      ctx.moveTo(0, y);
+      ctx.lineTo(size.x, y);
     }
     ctx.stroke();
 
@@ -111,6 +111,7 @@ const layerGroups = {
   default: L.layerGroup(),
   population: L.layerGroup(),
   claims: L.layerGroup(),
+  claimLimit: L.layerGroup(),
   nationPopulation: L.layerGroup(),
   nationClaims: L.layerGroup(),
   founded: L.layerGroup(),
@@ -143,6 +144,7 @@ const layerKeys = {
   default: "political",
   population: "population",
   claims: "claims",
+  claimLimit: "claimLimit",
   nationPopulation: "nationPopulation",
   nationClaims: "nationClaims",
   founded: "founded",
@@ -207,7 +209,7 @@ fetchMarkers()
     setupLegend();
     setupSettings();
     updateUIText();
-    
+
     // Hide loading overlay
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
@@ -216,12 +218,12 @@ fetchMarkers()
   })
   .catch(error => {
     console.error('Error loading markers:', error);
-    
+
     // Show error state
     const loadingContent = document.getElementById('loading-content');
     const errorContent = document.getElementById('error-content');
     const errorText = document.getElementById('error-text');
-    
+
     if (loadingContent) loadingContent.style.display = 'none';
     if (errorContent) errorContent.style.display = 'block';
     if (errorText) errorText.innerText = t('error');
@@ -230,10 +232,10 @@ fetchMarkers()
 function fetchMarkers() {
   return fetch(`${baseUrlCors}/markers.json`)
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
     });
 }
 
@@ -302,6 +304,16 @@ function processMarkers(layer) {
   renderLayers();
 }
 
+function getNationBonus(nationPop) {
+  if (nationPop >= 200) return 100;
+  if (nationPop >= 120) return 80;
+  if (nationPop >= 80) return 60;
+  if (nationPop >= 60) return 50;
+  if (nationPop >= 40) return 30;
+  if (nationPop >= 20) return 10;
+  return 0;
+}
+
 function renderLayers() {
   // Clear existing layers
   Object.values(layerGroups).forEach(group => group.clearLayers());
@@ -321,8 +333,23 @@ function renderLayers() {
       foundedColor = getDateColor(item.foundedTs, minDateGlobal, maxDateGlobal);
     }
 
+    // Claim Limit Calculation
+    const nationBonus = item.popupData.nation ? getNationBonus(item.nationPop) : 0;
+    const claimLimit = (item.pop * 12) + nationBonus;
+    const claims = Math.round(item.area);
+    const diff = claimLimit - claims;
+
+    let claimLimitColor;
+    if (diff > 0) {
+      claimLimitColor = "#00FF00"; // Green (Under limit)
+    } else if (diff === 0) {
+      claimLimitColor = "#FFFF00"; // Yellow (Equal)
+    } else {
+      claimLimitColor = "#FF0000"; // Red (Over limit)
+    }
+
     // Create Popup Content
-    const popupContent = getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density);
+    const popupContent = getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor);
 
     if (!item.marker.color) {
       item.marker.color = "#3457C1";
@@ -363,6 +390,13 @@ function renderLayers() {
       fillOpacity: 0.5
     }).addTo(layerGroups.claims);
 
+    // Claim Limit Layer
+    createPolygon(item.latlngs, item.marker, popupContent, {
+      color: claimLimitColor,
+      fillColor: claimLimitColor,
+      fillOpacity: 0.5
+    }).addTo(layerGroups.claimLimit);
+
     // Founded Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
       color: foundedColor,
@@ -379,12 +413,16 @@ function renderLayers() {
   });
 }
 
-function getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density) {
+function getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor) {
+  const displayDiff = -diff;
+  const diffSign = displayDiff > 0 ? '+' : '';
+  const diffColor = diff > 0 ? '#00FF00' : (diff < 0 ? '#FF0000' : '#FFFF00');
+
   return `
       <div class="infowindow">
         <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${item.popupData.name}</span><br>
         <div class="popup-row">${t('population')}: <span class="color-square" style="background-color:${popColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.pop}</span></div>
-        <div class="popup-row">${t('claims')}: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)}</span></div>
+        <div class="popup-row">${t('claims')}: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)} / ${claimLimit} [<span style="color:${diffColor}">${diffSign}${displayDiff}</span>]</span></div>
         <div class="popup-row">${t('density')}: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">${t('popChunk')}</span></div>
         <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.popupData.founded}</span></div>
         <br>
@@ -478,32 +516,32 @@ function setupSettings() {
 
     // Populate languages
     if (langOptions) {
-        langOptions.innerHTML = '';
-        Object.keys(translations).forEach(lang => {
-          const langName = translations[lang].name;
-          const btn = document.createElement('button');
-          btn.className = "text-left px-2 py-1 hover:bg-gray-700 rounded w-full";
-          btn.innerText = langName;
-          if (lang === currentLang) {
-            btn.classList.add('font-bold');
-          }
-          btn.onclick = () => {
-            changeLanguage(lang);
-            // Don't close popup, just update UI
-          };
-          langOptions.appendChild(btn);
-        });
+      langOptions.innerHTML = '';
+      Object.keys(translations).forEach(lang => {
+        const langName = translations[lang].name;
+        const btn = document.createElement('button');
+        btn.className = "text-left px-2 py-1 hover:bg-gray-700 rounded w-full";
+        btn.innerText = langName;
+        if (lang === currentLang) {
+          btn.classList.add('font-bold');
+        }
+        btn.onclick = () => {
+          changeLanguage(lang);
+          // Don't close popup, just update UI
+        };
+        langOptions.appendChild(btn);
+      });
     }
-    
+
     // Grid Toggle
     if (gridToggle) {
-        gridToggle.onchange = (e) => {
-            if (e.target.checked) {
-                gridLayer.addTo(map);
-            } else {
-                map.removeLayer(gridLayer);
-            }
-        };
+      gridToggle.onchange = (e) => {
+        if (e.target.checked) {
+          gridLayer.addTo(map);
+        } else {
+          map.removeLayer(gridLayer);
+        }
+      };
     }
   }
 }
@@ -540,10 +578,10 @@ function updateUIText() {
 
   const settingsBtn = document.getElementById('settings-btn');
   if (settingsBtn) settingsBtn.innerText = t('settings');
-  
+
   const langLabel = document.getElementById('lang-label');
   if (langLabel) langLabel.innerText = t('language');
-  
+
   const gridLabel = document.getElementById('grid-label');
   if (gridLabel) gridLabel.innerText = t('chunkGrid');
 
@@ -568,6 +606,26 @@ function updateLegend() {
 
   if (currentMode === 'default') {
     legendContent.innerHTML = `<div class="text-gray-400 italic">${t('noLegend')}</div>`;
+    return;
+  }
+
+  if (currentMode === 'claimLimit') {
+    legendContent.innerHTML = `
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border border-white" style="background-color: #00FF00"></div>
+          <span>${t('underLimit')}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border border-white" style="background-color: #FFFF00"></div>
+          <span>${t('atLimit')}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border border-white" style="background-color: #FF0000"></div>
+          <span>${t('overLimit')}</span>
+        </div>
+      </div>
+    `;
     return;
   }
 
