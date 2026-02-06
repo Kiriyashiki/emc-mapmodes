@@ -11,3 +11,9 @@ Hosted at https://emc-map.hainaut.xyz/
 - Multiple map modes to select
 - Popups with stats
 - Translations in multiple languages
+- Chunk Grid
+
+## Translation contributions
+
+- [Kiriyashiki](https://github.com/Kiriyashiki): EN - JA - FR
+- [nokteholda](https://github.com/nokteholda): ID

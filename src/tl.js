@@ -79,5 +79,32 @@ export const translations = {
     nationPopLabel: "Pop Nation",
     loading: "Chargement des données de la carte...",
     error: "Erreur lors du chargement des données de la carte. Veuillez réessayer plus tard."
-  }
+  },
+  id: {
+    name: 'Bahasa Indonesia',
+    political: "Geopolitik",
+    population: "Populasi",
+    claims: "Luas Teritori",
+    nationPopulation: "Populasi Negara",
+    nationClaims: "Luas Teritori Negara",
+    founded: "Tanggal Berdiri",
+    density: "Kepadatan",
+    legend: "Legenda",
+    language: "Bahasa",
+    settings: "Pengaturan",
+    oldest: "Terlama",
+    newest: "Terbaru",
+    popChunk: "Populasi/Luas Teritori",
+    noLegend: "Tidak ada legenda di mode Geopolitik",
+    mayor: "Walikota",
+    councillors: "Anggota Dewan",
+    pvp: "PVP",
+    public: "Publik",
+    nation: "Negara",
+    chunkGrid: "Garis Perbatasan Chunk",
+    nationClaimsLabel: "Luas Teritori Negara",
+    nationPopLabel: "Populasi Negara",
+    loading: "Memuat Data pada Peta",
+    error: "Gagal memuat data. Silahkan coba lagi nanti."
+  },
 };
