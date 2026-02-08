@@ -49,6 +49,7 @@ html, body {
   cursor: pointer;
   background-color: #2D005A;
   border: 2px solid #816B53;
+  flex-shrink: 0;
 }
 
 .mapmode-button:hover, .mapmode-button.active {

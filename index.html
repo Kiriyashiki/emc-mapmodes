@@ -31,14 +31,14 @@
   </div>
 </div>
 
-<div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-1000 flex flex-col items-center gap-2" id="ui-wrapper">
+<div class="fixed bottom-0 left-0 w-full z-1000 flex flex-col items-center gap-2 transform translate-x-0 sm:bottom-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto" id="ui-wrapper">
   <div class="text-white px-3 py-1 rounded shadow font-medium" id="mode-label" style="background-color: #0E1119;">
     Political
   </div>
-  <div class="p-1.5 rounded shadow flex gap-1" id="controls" style="background-color: #0E1119;"></div>
+  <div class="p-1.5 shadow flex gap-1 overflow-x-auto max-w-full w-full sm:w-auto sm:rounded rounded-none" id="controls" style="background-color: #0E1119;"></div>
 </div>
 
-<div class="fixed bottom-4 right-4 z-1000 flex flex-col items-end gap-2" id="legend-wrapper">
+<div class="fixed bottom-28 right-4 sm:bottom-4 z-1000 flex flex-col items-end gap-2" id="legend-wrapper">
   <div class="text-white p-3 rounded shadow max-h-[60vh] overflow-y-auto w-64 text-sm" id="legend-popup"
        style="background-color: #0E1119; display: none;">
     <h3 class="font-bold mb-2 text-lg border-b border-gray-600 pb-1" id="legend-title">Legend</h3>
