@@ -413,6 +413,16 @@ function renderLayers() {
   });
 }
 
+function escapeHtml(text) {
+  if (typeof text !== 'string') return text;
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor) {
   const displayDiff = -diff;
   const diffSign = displayDiff > 0 ? '+' : '';
@@ -420,13 +430,13 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
 
   return `
       <div class="infowindow">
-        <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${item.popupData.name}</span><br>
+        <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${escapeHtml(item.popupData.name)}</span><br>
         <div class="popup-row">${t('population')}: <span class="color-square" style="background-color:${popColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.pop}</span></div>
         <div class="popup-row">${t('claims')}: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)} / ${claimLimit} [<span style="color:${diffColor}">${diffSign}${displayDiff}</span>]</span></div>
         <div class="popup-row">${t('density')}: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">${t('popChunk')}</span></div>
-        <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.popupData.founded}</span></div>
+        <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${escapeHtml(item.popupData.founded)}</span></div>
         <br>
-        ${item.popupData.nation ? `${t('nation')}: <b class="dr-shadow" style="font-size: 1.1em;">${item.popupData.nation}</b><br>` : ''}
+        ${item.popupData.nation ? `${t('nation')}: <b class="dr-shadow" style="font-size: 1.1em;">${escapeHtml(item.popupData.nation)}</b><br>` : ''}
         <div class="popup-row">${t('nationClaimsLabel')}: <span class="color-square" style="background-color:${nationClaimsColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.nationClaims)}</span></div>
         <div class="popup-row">${t('nationPopLabel')}: <span class="color-square" style="background-color:${nationPopColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.nationPop}</span></div>
       </div>
@@ -453,7 +463,7 @@ function setupControls() {
   controlsDiv.innerHTML = '';
 
   Object.keys(layerGroups).forEach(key => {
-    const button = document.createElement('div');
+    const button = document.createElement('button');
     const imgUrl = new URL(`./img/${key.toLowerCase()}.png`, import.meta.url).href;
     const name = t(layerKeys[key]);
     button.innerHTML = `<div class="mmb-outline"><img src="${imgUrl}" alt="${name}" title="${name}" /></div>`
