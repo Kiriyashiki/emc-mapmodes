@@ -73,3 +73,82 @@ html, body {
 .mmb-outline:hover img, .mapmode-button.active .mmb-outline img {
   background-color: #BAA38B;
 }
+
+/* Nation Panel Styles */
+.nation-panel {
+  height: 100%;
+  width: 0;
+  position: fixed;
+  z-index: 2000;
+  top: 0;
+  left: 0;
+  background-color: #0E1119;
+  overflow-x: hidden;
+  transition: 0.3s;
+  padding-top: 60px;
+  color: white;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+  font-family: Lexend, "UD Digi Kyokasho NK-R", sans-serif;
+}
+
+#nation-panel-content {
+  padding: 20px;
+}
+
+.nation-panel .closebtn {
+  position: absolute;
+  top: 10px;
+  right: 25px;
+  font-size: 36px;
+  color: #818181;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.nation-panel .closebtn:hover {
+  color: #f1f1f1;
+}
+
+@media screen and (max-height: 450px) {
+  .nation-panel {padding-top: 15px;}
+  .nation-panel .closebtn {
+    font-size: 20px;
+    top: 15px;
+    right: 35px;
+  }
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 600px) {
+  .nation-panel.open {
+    width: 100%;
+  }
+}
+
+@media screen and (min-width: 601px) {
+  .nation-panel.open {
+    width: 350px;
+  }
+}
+
+.nation-panel-title {
+  font-size: 2em;
+  font-weight: bold;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 10px;
+}
+
+.nation-panel-stat {
+  margin-bottom: 10px;
+  font-size: 1.2em;
+}
+
+.nation-link {
+  cursor: pointer;
+  border-bottom: 1px dotted;
+}
+
+.nation-link:hover {
+  color: #ccc;
+}
