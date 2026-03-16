@@ -27,6 +27,10 @@ export const translations = {
     chunkGrid: "Chunk Grid",
     nationClaimsLabel: "Nation Claims",
     nationPopLabel: "Nation Pop",
+    nationTownsLabel: "Nation Towns",
+    nationLeader: "Leader",
+    nationCapital: "Capital",
+    board: "Board",
     loading: "Loading map data...",
     error: "Error loading map data. Please try again later."
   },
@@ -58,6 +62,10 @@ export const translations = {
     chunkGrid: "チャンクグリッド",
     nationClaimsLabel: "国のチャンク",
     nationPopLabel: "国の人口",
+    nationTownsLabel: "国の町",
+    nationLeader: "リーダー",
+    nationCapital: "首都",
+    board: "メッセージ",
     loading: "マップデータを読み込み中...",
     error: "マップデータの読み込み中にエラーが発生しました。後でもう一度お試しください。"
   },
@@ -89,6 +97,10 @@ export const translations = {
     chunkGrid: "Grille des Chunks",
     nationClaimsLabel: "Territoire Nation",
     nationPopLabel: "Pop Nation",
+    nationTownsLabel: "Villes Nation",
+    nationLeader: "Leader",
+    nationCapital: "Capitale",
+    board: "Message",
     loading: "Chargement des données de la carte...",
     error: "Erreur lors du chargement des données de la carte. Veuillez réessayer plus tard."
   },

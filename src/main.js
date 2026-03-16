@@ -11,10 +11,10 @@ import {translations} from "./tl.js";
 
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
-const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=${baseUrl}`;
+const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
 const maxNativeZoom = 3;
 const maxZoom = 4;
-const minZoom = 0;
+const minZoom = -1;
 const tileSize = 512;
 
 // Calculate transformation factor to ensure 1 map unit = 1 pixel at maxNativeZoom
@@ -40,6 +40,7 @@ L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
   tileSize: tileSize,
   minZoom: minZoom,
   maxZoom: maxZoom,
+  minNativeZoom: 0,
   maxNativeZoom: maxNativeZoom,
   noWrap: true,
   attribution: 'Map Data <a href="https://map.earthmc.net/">EMC</a>'
@@ -118,6 +119,8 @@ const layerGroups = {
   density: L.layerGroup()
 };
 
+const rangeLayerGroup = L.layerGroup().addTo(map);
+
 function getInitialLanguage() {
   const storedLang = localStorage.getItem('emc-mapmodes-lang');
   if (storedLang && translations[storedLang]) {
@@ -154,7 +157,10 @@ const layerKeys = {
 let currentMode = 'default';
 let minDateGlobal = Infinity;
 let maxDateGlobal = -Infinity;
-let processedMarkersData = []; // Store processed data to re-render popups on language change
+let processedMarkersData = [];
+let activeNation = null;
+let activeNationData = null;
+let allTownsDataCache = null;
 
 function getColor(val, grad) {
   return grad.find(s => val >= s.min)?.color || "#000000";
@@ -230,7 +236,7 @@ fetchMarkers()
   });
 
 function fetchMarkers() {
-  return fetch(`${baseUrlCors}/markers.json`)
+  return fetch(`${baseUrlCors}${baseUrl}/markers.json`)
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -261,11 +267,13 @@ function processMarkers(layer) {
           if (!nationData[popupData.nation]) {
             nationData[popupData.nation] = {
               "population": 0,
-              "claims": 0
+              "claims": 0,
+              "towns": 0
             }
           }
           nationData[popupData.nation]["population"] += pop;
           nationData[popupData.nation]["claims"] += area;
+          nationData[popupData.nation]["towns"] += 1;
         }
 
         const dateStr = popupData.founded;
@@ -294,12 +302,17 @@ function processMarkers(layer) {
   processedMarkersData = processed.map(item => {
     let nationPop = 0;
     let nationClaims = 0;
+    let nationTowns = 0;
     if (item.popupData.nation) {
       nationPop = nationData[item.popupData.nation]["population"] || 0;
       nationClaims = nationData[item.popupData.nation]["claims"] || 0;
+      nationTowns = nationData[item.popupData.nation]["towns"] || 0;
     }
-    return {...item, nationPop, nationClaims};
+    return {...item, nationPop, nationClaims, nationTowns};
   });
+
+  // Attach the array to the global window so the inline onclick can access it
+  globalThis.processedMarkersData = processedMarkersData;
 
   renderLayers();
 }
@@ -312,6 +325,130 @@ function getNationBonus(nationPop) {
   if (nationPop >= 40) return 30;
   if (nationPop >= 20) return 10;
   return 0;
+}
+
+// Ensure Turf.js is loaded
+function loadTurf() {
+  return new Promise((resolve, reject) => {
+    if (globalThis.turf) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/@turf/turf@6/turf.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Turf.js'));
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchTownsInBatches(townNames, batchSize = 50) {
+  const results = [];
+  for (let i = 0; i < townNames.length; i += batchSize) {
+    const batch = townNames.slice(i, i + batchSize);
+    try {
+      const response = await fetch(`${baseUrlCors}https://api.earthmc.net/v3/aurora/towns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: batch,
+          template: {
+            name: true,
+            coordinates: true
+          }
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          results.push(...data);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching town batch:", error);
+    }
+  }
+  return results;
+}
+
+function drawNationRange() {
+  rangeLayerGroup.clearLayers();
+  if (!activeNation) return;
+
+  // Find all towns belonging to the active nation
+  const townsInNation = processedMarkersData.filter(item => item.popupData.nation === activeNation);
+  const townNames = townsInNation.map(item => item.popupData.name);
+
+  if (townNames.length === 0) return;
+
+  // Find the nation data to get the capital
+  let capitalName = null;
+  if (activeNationData?.capital?.name) {
+    capitalName = activeNationData.capital.name;
+  }
+
+  loadTurf().then(async () => {
+    const data = await fetchTownsInBatches(townNames, 50);
+
+    if (!data || !Array.isArray(data) || activeNation === null) return;
+
+    const nationColor = townsInNation.length > 0 && townsInNation[0].marker.color ? townsInNation[0].marker.color : '#3457C1';
+
+    const polygons = [];
+
+    data.forEach(town => {
+      if (!town.coordinates?.spawn) return;
+      const spawn = town.coordinates.spawn;
+
+      const isCapital = town.name === capitalName;
+      const radius = isCapital ? 3500 : 1000;
+
+      const numSteps = 64;
+      const coordinates = [];
+      for (let i = 0; i < numSteps; i++) {
+        const angle = (i / numSteps) * 2 * Math.PI;
+        const dx = radius * Math.cos(angle);
+        const dz = radius * Math.sin(angle);
+        coordinates.push([spawn.x + dx, spawn.z + dz]);
+      }
+      coordinates.push(coordinates[0]); // Close the polygon
+
+      polygons.push(turf.polygon([coordinates]));
+    });
+
+    if (polygons.length > 0) {
+      // Union all polygons
+      let mergedPolygon = polygons[0];
+      for (let i = 1; i < polygons.length; i++) {
+        try {
+          mergedPolygon = turf.union(mergedPolygon, polygons[i]);
+        } catch (e) {
+          console.error("Turf union failed", e);
+        }
+      }
+
+      // Convert Turf geometry back to Leaflet LatLngs
+      const geojsonLayer = L.geoJSON(mergedPolygon, {
+        coordsToLatLng: function (coords) {
+          return new L.LatLng(coords[1], coords[0]);
+        },
+        style: {
+          color: nationColor,
+          fillColor: nationColor,
+          fillOpacity: 0.1,
+          weight: 2,
+          dashArray: '5, 5',
+          interactive: false,
+        }
+      });
+
+      geojsonLayer.addTo(rangeLayerGroup);
+    }
+  }).catch(err => {
+    console.error(err);
+  });
 }
 
 function renderLayers() {
@@ -348,6 +485,9 @@ function renderLayers() {
       claimLimitColor = "#FF0000"; // Red (Over limit)
     }
 
+    const isOtherNation = activeNation !== null && item.popupData.nation !== activeNation;
+    const greyOutColor = '#606060';
+
     // Create Popup Content
     const popupContent = getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor);
 
@@ -357,57 +497,57 @@ function renderLayers() {
 
     // Default Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: item.marker.color,
-      fillColor: item.marker.fillColor,
-      fillOpacity: item.marker.opacity
+      color: isOtherNation ? greyOutColor : item.marker.color,
+      fillColor: isOtherNation ? greyOutColor : item.marker.fillColor,
+      fillOpacity: isOtherNation ? 0.5 : item.marker.opacity
     }).addTo(layerGroups.default);
 
     // Population Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: popColor,
-      fillColor: popColor,
+      color: isOtherNation ? greyOutColor : popColor,
+      fillColor: isOtherNation ? greyOutColor : popColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.population);
 
     // Nation Population Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: nationPopColor,
-      fillColor: nationPopColor,
+      color: isOtherNation ? greyOutColor : nationPopColor,
+      fillColor: isOtherNation ? greyOutColor : nationPopColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.nationPopulation);
 
     // Nation Claims Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: nationClaimsColor,
-      fillColor: nationClaimsColor,
+      color: isOtherNation ? greyOutColor : nationClaimsColor,
+      fillColor: isOtherNation ? greyOutColor : nationClaimsColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.nationClaims);
 
     // Claims Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: claimColor,
-      fillColor: claimColor,
+      color: isOtherNation ? greyOutColor : claimColor,
+      fillColor: isOtherNation ? greyOutColor : claimColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.claims);
 
     // Claim Limit Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: claimLimitColor,
-      fillColor: claimLimitColor,
+      color: isOtherNation ? greyOutColor : claimLimitColor,
+      fillColor: isOtherNation ? greyOutColor : claimLimitColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.claimLimit);
 
     // Founded Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: foundedColor,
-      fillColor: foundedColor,
+      color: isOtherNation ? greyOutColor : foundedColor,
+      fillColor: isOtherNation ? greyOutColor : foundedColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.founded);
 
     // Density Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: densityColor,
-      fillColor: densityColor,
+      color: isOtherNation ? greyOutColor : densityColor,
+      fillColor: isOtherNation ? greyOutColor : densityColor,
       fillOpacity: 0.5
     }).addTo(layerGroups.density);
   });
@@ -428,6 +568,9 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
   const diffSign = displayDiff > 0 ? '+' : '';
   const diffColor = diff > 0 ? '#00FF00' : (diff < 0 ? '#FF0000' : '#FFFF00');
 
+  const nationNameStr = item.popupData.nation ? escapeHtml(item.popupData.nation) : '';
+  const safeNationName = item.popupData.nation ? escapeHtml(item.popupData.nation).replaceAll('\'', String.raw`\'`) : '';
+
   return `
       <div class="infowindow">
         <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${escapeHtml(item.popupData.name)}</span><br>
@@ -436,7 +579,7 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
         <div class="popup-row">${t('density')}: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">${t('popChunk')}</span></div>
         <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${escapeHtml(item.popupData.founded)}</span></div>
         <br>
-        ${item.popupData.nation ? `${t('nation')}: <b class="dr-shadow" style="font-size: 1.1em;">${escapeHtml(item.popupData.nation)}</b><br>` : ''}
+        ${item.popupData.nation ? `${t('nation')}: <b class="dr-shadow nation-link" style="font-size: 1.1em;" onclick="openNationPanel('${safeNationName}')">${nationNameStr}</b><br>` : ''}
         <div class="popup-row">${t('nationClaimsLabel')}: <span class="color-square" style="background-color:${nationClaimsColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.nationClaims)}</span></div>
         <div class="popup-row">${t('nationPopLabel')}: <span class="color-square" style="background-color:${nationPopColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.nationPop}</span></div>
       </div>
@@ -779,4 +922,144 @@ function calcArea(x, y, ptsNum) {
   }
 
   return Math.abs(area / 2);
+}
+
+async function fetchNationData(nationName) {
+  try {
+    const response = await fetch(`${baseUrlCors}https://api.earthmc.net/v3/aurora/nations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        query: [nationName],
+        template: {
+          name: true,
+          board: true,
+          king: true,
+          capital: true,
+          timestamps: true
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data && data.length > 0 ? data[0] : null;
+  } catch (error) {
+    console.error("Error fetching nation data:", error);
+    return null;
+  }
+}
+
+// Global functions for Nation Panel
+globalThis.openNationPanel = async function (nationName) {
+  const panel = document.getElementById("nation-panel");
+  const content = document.getElementById("nation-panel-content");
+
+  if (panel) {
+    panel.classList.add("open");
+  }
+
+  // Clear range layer
+  rangeLayerGroup.clearLayers();
+
+  if (activeNation !== nationName) {
+    activeNation = nationName;
+    renderLayers();
+  }
+
+  if (content && globalThis.processedMarkersData) {
+    // Find nation data from map
+    const nationItem = globalThis.processedMarkersData.find(item => item.popupData.nation === nationName);
+
+    // Show a loading state while fetching API data
+    content.innerHTML = `
+      <div class="nation-panel-title dr-shadow" style="color: ${nationItem ? nationItem.marker.color : '#3457C1'}">${escapeHtml(nationName)}</div>
+      <div class="text-gray-400 my-4 text-center">${t('loading')}</div>
+    `;
+
+    // Fetch API data
+    const apiData = await fetchNationData(nationName);
+    activeNationData = apiData;
+
+    // Draw the range after getting the API data (to know capital)
+    drawNationRange();
+
+    if (nationItem) {
+      const popColor = getColor(nationItem.nationPop, NATION_POPULATION_GRADIENT);
+      const claimsColor = getColor(nationItem.nationClaims, NATION_CLAIMS_GRADIENT);
+
+      let apiContent = '';
+      if (apiData) {
+        const foundedDate = apiData.timestamps?.registered ? new Date(apiData.timestamps.registered).toLocaleDateString() : 'Unknown';
+
+        apiContent = `
+          <div class="nation-panel-stat mt-4 pt-4 border-t border-gray-700">
+            <span style="color: #aaa">${t('nationLeader')}:</span> 
+            <span class="dr-shadow">${apiData.king?.name ? escapeHtml(apiData.king.name) : 'None'}</span>
+          </div>
+          <div class="nation-panel-stat">
+            <span style="color: #aaa">${t('nationCapital')}:</span> 
+            <span class="dr-shadow">${apiData.capital?.name ? escapeHtml(apiData.capital.name) : 'None'}</span>
+          </div>
+          <div class="nation-panel-stat">
+            <span style="color: #aaa">${t('founded')}:</span> 
+            <span class="dr-shadow">${foundedDate}</span>
+          </div>
+          ${apiData.board ? `
+            <div class="mt-4 p-3 bg-gray-800 rounded border border-gray-700">
+              <span style="color: #aaa; display:block; margin-bottom:4px; font-size: 0.9em;">${t('board')}:</span>
+              <span class="italic text-gray-300">${escapeHtml(apiData.board)}</span>
+            </div>
+          ` : ''}
+        `;
+      } else {
+        apiContent = `
+           <div class="mt-4 pt-4 border-t border-gray-700 text-gray-500 italic text-sm">
+             ${t('error')}
+           </div>
+         `;
+      }
+
+      content.innerHTML = `
+        <div class="nation-panel-title dr-shadow">${escapeHtml(nationName)}</div>
+        <div class="nation-panel-stat">
+          <span style="color: #aaa">${t('nationPopLabel')}:</span> 
+          <span class="color-square" style="background-color:${popColor}"></span>
+          <span class="dr-shadow">${nationItem.nationPop}</span>
+        </div>
+        <div class="nation-panel-stat">
+          <span style="color: #aaa">${t('nationClaimsLabel')}:</span> 
+          <span class="color-square" style="background-color:${claimsColor}"></span>
+          <span class="dr-shadow">${Math.round(nationItem.nationClaims)}</span>
+        </div>
+        <div class="nation-panel-stat">
+          <span style="color: #aaa">${t('nationTownsLabel')}:</span> 
+          <span class="dr-shadow">${nationItem.nationTowns || 0}</span>
+        </div>
+        ${apiContent}
+      `;
+    } else {
+      content.innerHTML = `<div class="nation-panel-title dr-shadow">${escapeHtml(nationName)}</div><p>${t('error')}</p>`;
+    }
+  }
+}
+
+globalThis.closeNav = function () {
+  const panel = document.getElementById("nation-panel");
+  if (panel) {
+    panel.classList.remove("open");
+  }
+
+  rangeLayerGroup.clearLayers();
+
+  if (activeNation !== null) {
+    activeNation = null;
+    activeNationData = null;
+    renderLayers();
+  }
 }
