@@ -1,6 +1,6 @@
 export const translations = {
   en: {
-    name: 'English',
+    name: "English",
     political: "Political",
     population: "Population",
     claims: "Claims",
@@ -35,7 +35,7 @@ export const translations = {
     error: "Error loading map data. Please try again later."
   },
   ja: {
-    name: '日本語',
+    name: "日本語",
     political: "政治的",
     population: "人口",
     claims: "チャンク",
@@ -70,7 +70,7 @@ export const translations = {
     error: "マップデータの読み込み中にエラーが発生しました。後でもう一度お試しください。"
   },
   fr: {
-    name: 'Français',
+    name: "Français",
     political: "Politique",
     population: "Population",
     claims: "Territoire",
@@ -105,7 +105,7 @@ export const translations = {
     error: "Erreur lors du chargement des données de la carte. Veuillez réessayer plus tard."
   },
   id: {
-    name: 'Bahasa Indonesia',
+    name: "Bahasa Indonesia",
     political: "Geopolitik",
     population: "Populasi",
     claims: "Luas Teritori",
@@ -134,5 +134,40 @@ export const translations = {
     nationPopLabel: "Populasi Negara",
     loading: "Memuat Data pada Peta",
     error: "Gagal memuat data. Silahkan coba lagi nanti."
+  },
+  hi: {
+    name: "हिंदी",
+    political: "राजनीतिक",
+    population: "जनसंख्या",
+    claims: "दावे",
+    claimLimit: "दावों की सीमा",
+    nationPopulation: "राष्ट्र की जनसंख्या",
+    nationClaims: "राष्ट्र के दावे",
+    founded: "स्थापना की तारीख",
+    density: "घनत्व",
+    legend: "संकेत-सूची",
+    language: "भाषा",
+    settings: "सेटिंग्स",
+    oldest: "सबसे पुराना",
+    newest: "सबसे नया",
+    underLimit: "सीमा के अंदर",
+    atLimit: "सीमा पर",
+    overLimit: "सीमा से ज़्यादा",
+    popChunk: "पापुलेशन/चंक",
+    noLegend: "राजनीतिक मोड के लिए कोई संकेत-सूची उपलब्ध नहीं है",
+    mayor: "मेयर",
+    councillors: "पार्षद",
+    pvp: "पीवीपी",
+    public: "सार्वजनिक",
+    nation: "राष्ट्र",
+    chunkGrid: "चंक ग्रिड",
+    nationClaimsLabel: "राष्ट्र के दावे",
+    nationPopLabel: "राष्ट्र की जनसंख्या",
+    nationTownsLabel: "राष्ट्र के शहर",
+    nationLeader: "नेता",
+    nationCapital: "राजधानी",
+    board: "बोर्ड",
+    loading: "मैप डेटा लोड हो रहा है...",
+    error: "मैप डेटा लोड करने में त्रुटि हुई। कृपया बाद में फिर से प्रयास करें।"
   },
 };

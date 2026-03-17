@@ -17,3 +17,4 @@ Hosted at https://emc-map.hainaut.xyz/
 
 - [Kiriyashiki](https://github.com/Kiriyashiki): EN - JA - FR
 - [nokteholda](https://github.com/nokteholda): ID
+- Addychi01: HI
