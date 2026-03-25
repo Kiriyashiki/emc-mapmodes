@@ -343,7 +343,7 @@ function loadTurf() {
   });
 }
 
-async function fetchTownsInBatches(townNames, batchSize = 50) {
+async function fetchTownsInBatches(townNames, batchSize = 100) {
   const results = [];
   for (let i = 0; i < townNames.length; i += batchSize) {
     const batch = townNames.slice(i, i + batchSize);
@@ -391,7 +391,7 @@ function drawNationRange() {
   }
 
   loadTurf().then(async () => {
-    const data = await fetchTownsInBatches(townNames, 50);
+    const data = await fetchTownsInBatches(townNames, 100);
 
     if (!data || !Array.isArray(data) || activeNation === null) return;
 
@@ -612,6 +612,7 @@ function setupControls() {
     const name = t(layerKeys[key]);
     button.innerHTML = `<div class="mmb-outline"><img src="${imgUrl}" alt="${name}" title="${name}" /></div>`
     button.className = "mapmode-button";
+    button.title = name;
     if (key === currentMode) {
       button.classList.add('active');
       if (modeLabel) modeLabel.innerText = name;
@@ -656,7 +657,7 @@ function setupLegend() {
 function setupSettings() {
   const settingsBtn = document.getElementById('settings-btn');
   const settingsPopup = document.getElementById('settings-popup');
-  const langOptions = document.getElementById('lang-options');
+  const langSelect = document.getElementById('lang-select');
   const gridToggle = document.getElementById('grid-toggle');
 
   if (settingsBtn && settingsPopup) {
@@ -669,22 +670,21 @@ function setupSettings() {
     };
 
     // Populate languages
-    if (langOptions) {
-      langOptions.innerHTML = '';
+    if (langSelect) {
+      langSelect.innerHTML = '';
       Object.keys(translations).forEach(lang => {
         const langName = translations[lang].name;
-        const btn = document.createElement('button');
-        btn.className = "text-left px-2 py-1 hover:bg-gray-700 rounded w-full";
-        btn.innerText = langName;
+        const option = document.createElement('option');
+        option.value = lang;
+        option.innerText = langName;
         if (lang === currentLang) {
-          btn.classList.add('font-bold');
+          option.selected = true;
         }
-        btn.onclick = () => {
-          changeLanguage(lang);
-          // Don't close popup, just update UI
-        };
-        langOptions.appendChild(btn);
+        langSelect.appendChild(option);
       });
+      langSelect.onchange = () => {
+        changeLanguage(langSelect.value);
+      };
     }
 
     // Grid Toggle
@@ -710,16 +710,10 @@ function changeLanguage(lang) {
   updateLegend();
   renderLayers(); // Re-render layers to update popup content
 
-  // Update language selector active state
-  const langOptions = document.getElementById('lang-options');
-  if (langOptions) {
-    Array.from(langOptions.children).forEach(btn => {
-      if (btn.innerText === translations[lang].name) {
-        btn.classList.add('font-bold');
-      } else {
-        btn.classList.remove('font-bold');
-      }
-    });
+  // Update language selector value
+  const langSelect = document.getElementById('lang-select');
+  if (langSelect) {
+    langSelect.value = lang;
   }
 }
 
