@@ -17,6 +17,8 @@ export const translations = {
     underLimit: "Under Limit",
     atLimit: "At Limit",
     overLimit: "Over Limit",
+    shield: "Shield",
+    shieldActive: "Overclaim Shield Active",
     popChunk: "pop/chunk",
     noLegend: "No legend available for Political mode",
     mayor: "Mayor",
@@ -52,6 +54,8 @@ export const translations = {
     underLimit: "制限以下",
     atLimit: "限界で",
     overLimit: "制限以上",
+    shield: "保護",
+    shieldActive: "オーバークレーム保護あり",
     popChunk: "人/チャンク",
     noLegend: "このモードでは凡例は使用できません",
     mayor: "市長",
@@ -87,6 +91,8 @@ export const translations = {
     underLimit: "Sous la limite",
     atLimit: "À la limite",
     overLimit: "Au dessus de la limite",
+    shield: "Protection",
+    shieldActive: "Protection Overclaim Active",
     popChunk: "hab/chunk",
     noLegend: "Pas de légende disponible pour le mode Politique",
     mayor: "Maire",
@@ -122,6 +128,8 @@ export const translations = {
     underLimit: "Di bawah batas",
     atLimit: "Tepat pada batas",
     overLimit: "Melebihi batas",
+    shield: "Shield", // todo
+    shieldActive: "Overclaim Shield Active", // todo
     popChunk: "Populasi/Luas Teritori",
     noLegend: "Tidak ada legenda di mode Geopolitik",
     mayor: "Walikota",
@@ -132,6 +140,9 @@ export const translations = {
     chunkGrid: "Garis Perbatasan Chunk",
     nationClaimsLabel: "Luas Teritori Negara",
     nationPopLabel: "Populasi Negara",
+    nationTownsLabel: "Nation Towns", // todo
+    nationLeader: "Leader", // todo
+    nationCapital: "Capital", // todo
     loading: "Memuat Data pada Peta",
     error: "Gagal memuat data. Silahkan coba lagi nanti."
   },
@@ -153,6 +164,8 @@ export const translations = {
     underLimit: "सीमा के अंदर",
     atLimit: "सीमा पर",
     overLimit: "सीमा से ज़्यादा",
+    shield: "Shield", // todo
+    shieldActive: "Overclaim Shield Active", // todo
     popChunk: "पापुलेशन/चंक",
     noLegend: "राजनीतिक मोड के लिए कोई संकेत-सूची उपलब्ध नहीं है",
     mayor: "मेयर",

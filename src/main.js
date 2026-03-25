@@ -9,6 +9,57 @@ import {
 } from './gradients.js';
 import {translations} from "./tl.js";
 
+// IndexedDB functions
+const DB_NAME = 'emcMapmodesDB';
+const DB_VERSION = 1;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('townData')) {
+        db.createObjectStore('townData', {keyPath: 'id'});
+      }
+    };
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+    request.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
+async function storeTownData(data) {
+  const db = await openDB();
+  const transaction = db.transaction(['townData'], 'readwrite');
+  const store = transaction.objectStore('townData');
+  const item = {
+    id: 'townData',
+    data: data,
+    timestamp: Date.now()
+  };
+  store.put(item);
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = (event) => reject(event.target.error);
+  });
+}
+
+async function getTownData() {
+  const db = await openDB();
+  const transaction = db.transaction(['townData'], 'readonly');
+  const store = transaction.objectStore('townData');
+  const request = store.get('townData');
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+    request.onerror = (event) => reject(event.target.error);
+  });
+}
+
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
 const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
@@ -162,6 +213,7 @@ let processedMarkersData = [];
 let activeNation = null;
 let activeNationData = null;
 let allTownsDataCache = null;
+let lastTownDataLoadTime = null;
 
 function getColor(val, grad) {
   return grad.find(s => val >= s.min)?.color || "#000000";
@@ -203,7 +255,7 @@ updateUIText();
 
 // Fetch and display markers
 fetchMarkers()
-  .then(data => {
+  .then(async data => {
     let layer;
     for (let l of data) {
       if (l.id === "towny") {
@@ -217,7 +269,10 @@ fetchMarkers()
     setupSettings();
     updateUIText();
 
-    // Hide loading overlay
+    // Load town data (from cache or API) and wait for it to complete
+    await loadTownDataAtStartup();
+
+    // Hide loading overlay only after town data is fully loaded
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
       loadingOverlay.style.display = 'none';
@@ -244,6 +299,78 @@ function fetchMarkers() {
       }
       return response.json();
     });
+}
+
+async function loadTownDataAtStartup() {
+  try {
+    // Try to load from IndexedDB cache first
+    const cached = await getTownData();
+    const now = Date.now();
+    const cacheAge = cached ? now - cached.timestamp : Infinity;
+    const tenMinutes = 10 * 60 * 1000;
+
+    // If cache exists and is less than 10 minutes old, use it
+    if (cached && cacheAge < tenMinutes) {
+      allTownsDataCache = cached.data;
+      lastTownDataLoadTime = cached.timestamp;
+      enrichProcessedDataWithApiData(cached.data);
+      renderLayers();
+      console.log('Loaded town data from cache.');
+    } else {
+      // Cache is expired or doesn't exist, fetch fresh data from API
+      const townNames = processedMarkersData.map(item => item.popupData.name);
+      const results = [];
+      const batchSize = 100;
+
+      for (let i = 0; i < townNames.length; i += batchSize) {
+        const batch = townNames.slice(i, i + batchSize);
+        try {
+          const response = await fetch(`${baseUrlApi}/towns`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              query: batch,
+              template: {
+                name: true,
+                coordinates: true,
+                status: true,
+                stats: true
+              }
+            })
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+              results.push(...data);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching town batch:", error);
+        }
+      }
+
+      if (results.length > 0) {
+        allTownsDataCache = results;
+        lastTownDataLoadTime = Date.now();
+        enrichProcessedDataWithApiData(results);
+
+        // Store in IndexedDB
+        storeTownData(results)
+          .then(() => {
+            console.log('Town data loaded from API and cached.');
+          })
+          .catch(error => {
+            console.error('Error storing town data in IndexedDB:', error);
+          });
+
+        renderLayers();
+      }
+    }
+  } catch (error) {
+    console.error('Error loading town data at startup:', error);
+  }
 }
 
 function processMarkers(layer) {
@@ -343,6 +470,7 @@ function loadTurf() {
   });
 }
 
+// Batch size max 100
 async function fetchTownsInBatches(townNames, batchSize = 100) {
   const results = [];
   for (let i = 0; i < townNames.length; i += batchSize) {
@@ -357,7 +485,9 @@ async function fetchTownsInBatches(townNames, batchSize = 100) {
           query: batch,
           template: {
             name: true,
-            coordinates: true
+            coordinates: true,
+            status: true,
+            stats: true
           }
         })
       });
@@ -374,6 +504,26 @@ async function fetchTownsInBatches(townNames, batchSize = 100) {
   return results;
 }
 
+function enrichProcessedDataWithApiData(apiData) {
+  if (!apiData || !Array.isArray(apiData)) return;
+
+  // Create a map for quick lookup
+  const apiMap = new Map();
+  apiData.forEach(town => {
+    apiMap.set(town.name, town);
+  });
+
+  // Enrich processed markers with API data
+  processedMarkersData.forEach(item => {
+    const apiTown = apiMap.get(item.popupData.name);
+    if (apiTown) {
+      item.apiData = apiTown;
+      item.maxTownBlocks = apiTown.stats?.maxTownBlocks || null;
+      item.hasOverclaimShield = apiTown.status?.hasOverclaimShield || false;
+    }
+  });
+}
+
 function drawNationRange() {
   rangeLayerGroup.clearLayers();
   if (!activeNation) return;
@@ -384,6 +534,16 @@ function drawNationRange() {
 
   if (townNames.length === 0) return;
 
+  // Check for cached data
+  if (!allTownsDataCache) {
+    // No cached data, don't draw range
+    console.log('No cached town data available. Please load town data in settings.');
+    return;
+  }
+
+  // Filter cached data for this nation's towns
+  const data = allTownsDataCache.filter(town => townNames.includes(town.name));
+
   // Find the nation data to get the capital
   let capitalName = null;
   if (activeNationData?.capital?.name) {
@@ -391,8 +551,6 @@ function drawNationRange() {
   }
 
   loadTurf().then(async () => {
-    const data = await fetchTownsInBatches(townNames, 100);
-
     if (!data || !Array.isArray(data) || activeNation === null) return;
 
     const nationColor = townsInNation.length > 0 && townsInNation[0].marker.color ? townsInNation[0].marker.color : '#3457C1';
@@ -472,18 +630,30 @@ function renderLayers() {
     }
 
     // Claim Limit Calculation
-    const nationBonus = item.popupData.nation ? getNationBonus(item.nationPop) : 0;
-    const claimLimit = (item.pop * 12) + nationBonus;
+    let claimLimit;
+    if (item.maxTownBlocks !== null && item.maxTownBlocks !== undefined) {
+      claimLimit = item.maxTownBlocks;
+    } else {
+      const nationBonus = item.popupData.nation ? getNationBonus(item.nationPop) : 0;
+      claimLimit = (item.pop * 12) + nationBonus;
+    }
+
     const claims = Math.round(item.area);
     const diff = claimLimit - claims;
 
     let claimLimitColor;
-    if (diff > 0) {
-      claimLimitColor = "#00FF00"; // Green (Under limit)
+    if (diff > 0 && item.hasOverclaimShield) {
+      claimLimitColor = "#00A500";
+    } else if (diff > 0) {
+      claimLimitColor = "#00FF00";
+    } else if (diff === 0 && item.hasOverclaimShield) {
+      claimLimitColor = "#B7FF00";
     } else if (diff === 0) {
-      claimLimitColor = "#FFFF00"; // Yellow (Equal)
+      claimLimitColor = "#FFFF00";
+    } else if (diff < 0 && item.hasOverclaimShield) {
+      claimLimitColor = "#FFA500";
     } else {
-      claimLimitColor = "#FF0000"; // Red (Over limit)
+      claimLimitColor = "#FF0000";
     }
 
     const isOtherNation = activeNation !== null && item.popupData.nation !== activeNation;
@@ -557,11 +727,11 @@ function renderLayers() {
 function escapeHtml(text) {
   if (typeof text !== 'string') return text;
   return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replaceAll('&', "&amp;")
+    .replaceAll('<', "&lt;")
+    .replaceAll('>', "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll('\'', "&#039;");
 }
 
 function getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor) {
@@ -572,11 +742,14 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
   const nationNameStr = item.popupData.nation ? escapeHtml(item.popupData.nation) : '';
   const safeNationName = item.popupData.nation ? escapeHtml(item.popupData.nation).replaceAll('\'', String.raw`\'`) : '';
 
+  const shieldStatus = item.hasOverclaimShield ? `<div class="popup-row"><span class="dr-shadow" style="font-size: 1.1em; color: #FFD700;">${t('shieldActive')}</span></div>` : '';
+
   return `
       <div class="infowindow">
         <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${escapeHtml(item.popupData.name)}</span><br>
         <div class="popup-row">${t('population')}: <span class="color-square" style="background-color:${popColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.pop}</span></div>
         <div class="popup-row">${t('claims')}: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)} / ${claimLimit} [<span style="color:${diffColor}">${diffSign}${displayDiff}</span>]</span></div>
+        ${shieldStatus}
         <div class="popup-row">${t('density')}: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">${t('popChunk')}</span></div>
         <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${escapeHtml(item.popupData.founded)}</span></div>
         <br>
@@ -736,14 +909,8 @@ function updateUIText() {
   const gridText = document.getElementById('grid-text');
   if (gridText) gridText.innerText = t('chunkGrid');
 
-  const modeLabel = document.getElementById('mode-label');
-  if (modeLabel) modeLabel.innerText = t(layerKeys[currentMode]);
-
-  const loadingText = document.getElementById('loading-text');
-  if (loadingText) loadingText.innerText = t('loading');
-
-  const errorText = document.getElementById('error-text');
-  if (errorText) errorText.innerText = t('error');
+  const townDataLabel = document.getElementById('town-data-label');
+  if (townDataLabel) townDataLabel.innerText = t('townData');
 }
 
 function updateLegend() {
@@ -760,13 +927,25 @@ function updateLegend() {
   if (currentMode === 'claimLimit') {
     legendContent.innerHTML = `
       <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border border-white" style="background-color: #00A500"></div>
+          <span>${t('underLimit')} (${t('shield')})</span>
+        </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #00FF00"></div>
           <span>${t('underLimit')}</span>
         </div>
         <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border border-white" style="background-color: #B7FF00"></div>
+          <span>${t('atLimit')} (${t('shield')})</span>
+        </div>
+        <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #FFFF00"></div>
           <span>${t('atLimit')}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border border-white" style="background-color: #FFA500"></div>
+          <span>${t('overLimit')} (${t('shield')})</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #FF0000"></div>
@@ -788,7 +967,7 @@ function updateLegend() {
           <div class="w-4 h-4 border border-white" style="background-color: hsl(240, 100%, 50%)"></div>
           <span>${t('oldest')} (${minDateStr})</span>
         </div>
-        <div class="h-20 w-4 ml-0.5 my-1" style="background: linear-gradient(to bottom, rgba(0, 0, 255, 1) 0%, rgba(72, 218, 247, 1) 25%, rgba(14, 255, 10, 1) 50%, rgba(251, 255, 0, 1) 75%, rgba(255, 0, 0, 1) 100%)"></div>
+        <div class="h-20 w-4 ml-0.5 my-1" style="background: linear-gradient(to bottom, rgba(0, 0, 255, 1) 0%, rgba(72, 218, 247, 1) 25%, rgba(14, 255, 10) 50%, rgba(251, 255, 0) 75%, rgba(255, 0, 0, 1) 100%)"></div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: hsl(0, 100%, 50%)"></div>
           <span>${t('newest')} (${maxDateStr})</span>
