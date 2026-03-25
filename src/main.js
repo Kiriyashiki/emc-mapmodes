@@ -12,6 +12,7 @@ import {translations} from "./tl.js";
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
 const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
+const baseUrlApi = `${baseUrlCors}https://api.earthmc.net/v4/aurora`
 const maxNativeZoom = 3;
 const maxZoom = 4;
 const minZoom = -1;
@@ -347,7 +348,7 @@ async function fetchTownsInBatches(townNames, batchSize = 50) {
   for (let i = 0; i < townNames.length; i += batchSize) {
     const batch = townNames.slice(i, i + batchSize);
     try {
-      const response = await fetch(`${baseUrlCors}https://api.earthmc.net/v3/aurora/towns`, {
+      const response = await fetch(`${baseUrlApi}/towns`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -926,7 +927,7 @@ function calcArea(x, y, ptsNum) {
 
 async function fetchNationData(nationName) {
   try {
-    const response = await fetch(`${baseUrlCors}https://api.earthmc.net/v3/aurora/nations`, {
+    const response = await fetch(`${baseUrlApi}/nations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
