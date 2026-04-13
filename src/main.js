@@ -63,10 +63,10 @@ async function getTownData() {
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
 const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
-const baseUrlApi = `${baseUrlCors}https://api.earthmc.net/v4/aurora`
-const maxNativeZoom = 3;
-const maxZoom = 4;
-const minZoom = -1;
+const baseUrlApi = `${baseUrlCors}https://api.earthmc.net/v4/nostra`
+const maxNativeZoom = 5;
+const maxZoom = 7;
+const minZoom = 0;
 const tileSize = 512;
 
 // Calculate transformation factor to ensure 1 map unit = 1 pixel at maxNativeZoom
@@ -83,8 +83,8 @@ const map = L.map('map', {
   zoomSnap: 1,
   zoomDelta: 1,
   maxBounds: [
-    [-16666, -33333],
-    [16510, 33083],
+    [-32256, -64512],
+    [32256, 64512],
   ]
 });
 
@@ -115,7 +115,7 @@ const GridLayer = L.GridLayer.extend({
     const blockSize = 16 * zoomScale;
     const bigBlockSize = 512 * zoomScale;
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
 
     // Draw 16x16 grid
@@ -263,7 +263,9 @@ fetchMarkers()
         break;
       }
     }
-    processMarkers(layer);
+    if (layer) {
+      processMarkers(layer);
+    }
     setupControls();
     setupLegend();
     setupSettings();
