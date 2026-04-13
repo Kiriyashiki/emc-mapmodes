@@ -10,7 +10,7 @@ import {
 import {translations} from "./tl.js";
 
 // Configuration
-const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
+const baseUrl = 'https://aurora.earthmc.net/tiles/minecraft_overworld';
 const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
 const maxNativeZoom = 3;
 const maxZoom = 4;
@@ -43,7 +43,7 @@ L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
   minNativeZoom: 0,
   maxNativeZoom: maxNativeZoom,
   noWrap: true,
-  attribution: 'Map Data <a href="https://map.earthmc.net/">EMC</a>'
+  attribution: 'Map Data <a href="https://aurora.earthmc.net/">EMC</a>'
 }).addTo(map);
 
 // Grid Layer
