@@ -63,7 +63,7 @@ async function getTownData() {
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
 const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
-const baseUrlApi = `${baseUrlCors}https://api.earthmc.net/v4/nostra`
+const baseUrlApi = `${baseUrlCors}https://api.earthmc.net/v4`
 const maxNativeZoom = 5;
 const maxZoom = 7;
 const minZoom = 0;
