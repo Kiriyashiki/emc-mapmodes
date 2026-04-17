@@ -564,7 +564,7 @@ function drawNationRange() {
       const spawn = town.coordinates.spawn;
 
       const isCapital = town.name === capitalName;
-      const radius = isCapital ? 3500 : 1000;
+      const radius = isCapital ? 5000 : 1500;
 
       const numSteps = 64;
       const coordinates = [];
