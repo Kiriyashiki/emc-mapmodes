@@ -34,7 +34,18 @@ export const translations = {
     nationCapital: "Capital",
     board: "Board",
     loading: "Loading map data...",
-    error: "Error loading map data. Please try again later."
+    error: "Error loading map data. Please try again later.",
+    rankings: "Rankings",
+    populationRank: "Population Rank",
+    claimsRank: "Claims Rank",
+    top1: "Top 1",
+    top3: "Top 3",
+    top10: "Top 10",
+    valueGradient: "Value Gradient",
+    oldestDay: "First Day",
+    oldest7Days: "Oldest 7 Days",
+    oldest28Days: "Oldest 28 Days",
+    townData: "Town Data"
   },
   ja: {
     name: "日本語",
@@ -71,7 +82,18 @@ export const translations = {
     nationCapital: "首都",
     board: "メッセージ",
     loading: "マップデータを読み込み中...",
-    error: "マップデータの読み込み中にエラーが発生しました。後でもう一度お試しください。"
+    error: "マップデータの読み込み中にエラーが発生しました。後でもう一度お試しください。",
+    rankings: "ランキング",
+    populationRank: "人口ランク",
+    claimsRank: "チャンクランク",
+    top1: "トップ1",
+    top3: "トップ3",
+    top10: "トップ10",
+    valueGradient: "値グラデーション",
+    oldestDay: "最古の日",
+    oldest7Days: "最古の7日",
+    oldest28Days: "最古の28日",
+    townData: "町データ"
   },
   fr: {
     name: "Français",
@@ -108,7 +130,18 @@ export const translations = {
     nationCapital: "Capitale",
     board: "Message",
     loading: "Chargement des données de la carte...",
-    error: "Erreur lors du chargement des données de la carte. Veuillez réessayer plus tard."
+    error: "Erreur lors du chargement des données de la carte. Veuillez réessayer plus tard.",
+    rankings: "Classements",
+    populationRank: "Rang de Population",
+    claimsRank: "Rang de Territoire",
+    top1: "Top 1",
+    top3: "Top 3",
+    top10: "Top 10",
+    valueGradient: "Gradient de Valeur",
+    oldestDay: "Premier Jour",
+    oldest7Days: "Plus Anciens 7 Jours",
+    oldest28Days: "Plus Anciens 28 Jours",
+    townData: "Données de Ville"
   },
   id: {
     name: "Bahasa Indonesia",
@@ -144,7 +177,18 @@ export const translations = {
     nationLeader: "Leader", // todo
     nationCapital: "Capital", // todo
     loading: "Memuat Data pada Peta",
-    error: "Gagal memuat data. Silahkan coba lagi nanti."
+    error: "Gagal memuat data. Silahkan coba lagi nanti.",
+    rankings: "Rankings", // todo
+    populationRank: "Population Rank", // todo
+    claimsRank: "Claims Rank", // todo
+    top1: "Top 1", // todo
+    top3: "Top 3", // todo
+    top10: "Top 10", // todo
+    valueGradient: "Value Gradient", // todo
+    oldestDay: "First Day", // todo
+    oldest7Days: "Oldest 7 Days", // todo
+    oldest28Days: "Oldest 28 Days", // todo
+    townData: "Town Data" // todo
   },
   hi: {
     name: "हिंदी",
@@ -181,6 +225,17 @@ export const translations = {
     nationCapital: "राजधानी",
     board: "बोर्ड",
     loading: "मैप डेटा लोड हो रहा है...",
-    error: "मैप डेटा लोड करने में त्रुटि हुई। कृपया बाद में फिर से प्रयास करें।"
+    error: "मैप डेटा लोड करने में त्रुटि हुई। कृपया बाद में फिर से प्रयास करें।",
+    rankings: "Rankings", // todo
+    populationRank: "Population Rank", // todo
+    claimsRank: "Claims Rank", // todo
+    top1: "Top 1", // todo
+    top3: "Top 3", // todo
+    top10: "Top 10", // todo
+    valueGradient: "Value Gradient", // todo
+    oldestDay: "First Day", // todo
+    oldest7Days: "Oldest 7 Days", // todo
+    oldest28Days: "Oldest 28 Days", // todo
+    townData: "Town Data" // todo
   },
 };

@@ -215,6 +215,13 @@ let activeNationData = null;
 let allTownsDataCache = null;
 let lastTownDataLoadTime = null;
 
+// Ranking colors
+const RANKING_COLORS = {
+  gold: '#FFD700',
+  silver: '#C0C0C0',
+  bronze: '#CD7F32'
+};
+
 function getColor(val, grad) {
   return grad.find(s => val >= s.min)?.color || "#000000";
 }
@@ -246,6 +253,107 @@ function getDensityColor(val) {
   }
   return "#000000";
 }
+
+// Calculate rankings for towns by a metric
+function calculateRankings(data, metric) {
+  const sorted = [...data].sort((a, b) => b[metric] - a[metric]);
+  const rankings = {};
+
+  sorted.forEach((item, index) => {
+    const townName = item.popupData.name;
+    let rank = 'none';
+
+    if (index === 0) {
+      rank = 'gold';
+    } else if (index < 3) {
+      rank = 'silver';
+    } else if (index < 10) {
+      rank = 'bronze';
+    }
+
+    rankings[townName] = {rank, position: index + 1, value: item[metric]};
+  });
+
+  return rankings;
+}
+
+// Calculate rankings for nations by a metric
+function calculateNationRankings(data, metric) {
+  // Group by nation and aggregate
+  const nationAggregates = {};
+
+  data.forEach(item => {
+    if (item.popupData.nation) {
+      const nation = item.popupData.nation;
+      if (!nationAggregates[nation]) {
+        nationAggregates[nation] = {[metric]: 0};
+      }
+      nationAggregates[nation][metric] += item[metric];
+    }
+  });
+
+  // Sort and rank
+  const sorted = Object.entries(nationAggregates)
+    .sort((a, b) => b[1][metric] - a[1][metric]);
+
+  const rankings = {};
+  sorted.forEach(([nation, stats], index) => {
+    let rank = 'none';
+
+    if (index === 0) {
+      rank = 'gold';
+    } else if (index < 3) {
+      rank = 'silver';
+    } else if (index < 10) {
+      rank = 'bronze';
+    }
+
+    rankings[nation] = {rank, position: index + 1, value: stats[metric]};
+  });
+
+  return rankings;
+}
+
+// Get border color based on ranking
+function getRankingBorderColor(rankingInfo) {
+  if (!rankingInfo) return null;
+  return RANKING_COLORS[rankingInfo.rank] || null;
+}
+
+// Calculate founded date groupings (oldest day, 7 days, 28 days)
+function calculateFoundedGroupings(data, minDate, maxDate) {
+  const groupings = {};
+
+  data.forEach(item => {
+    if (item.foundedTs === null) {
+      groupings[item.popupData.name] = 'unknown';
+      return;
+    }
+
+    const timeDiffMs = item.foundedTs - minDate;
+    const timeDiffDays = timeDiffMs / (1000 * 60 * 60 * 24);
+
+    if (timeDiffDays < 1) {
+      groupings[item.popupData.name] = 'day';
+    } else if (timeDiffDays < 7) {
+      groupings[item.popupData.name] = 'week';
+    } else if (timeDiffDays < 28) {
+      groupings[item.popupData.name] = 'month';
+    } else {
+      groupings[item.popupData.name] = 'other';
+    }
+  });
+
+  return groupings;
+}
+
+const FOUNDED_GROUPING_COLORS = {
+  day: '#FFD700',    // gold
+  week: '#C0C0C0',   // silver
+  month: '#CD7F32',  // bronze
+  other: null,
+  unknown: null
+};
 
 // Add default layer to map initially
 layerGroups.default.addTo(map);
@@ -439,6 +547,22 @@ function processMarkers(layer) {
       nationTowns = nationData[item.popupData.nation]["towns"] || 0;
     }
     return {...item, nationPop, nationClaims, nationTowns};
+  });
+
+  // Calculate rankings
+  const populationRankings = calculateRankings(processedMarkersData, 'pop');
+  const claimsRankings = calculateRankings(processedMarkersData, 'area');
+  const nationPopRankings = calculateNationRankings(processedMarkersData, 'nationPop');
+  const nationClaimsRankings = calculateNationRankings(processedMarkersData, 'nationClaims');
+  const foundedGroupings = calculateFoundedGroupings(processedMarkersData, minDateGlobal, maxDateGlobal);
+
+  // Attach rankings to each item
+  processedMarkersData.forEach(item => {
+    item.populationRank = populationRankings[item.popupData.name];
+    item.claimsRank = claimsRankings[item.popupData.name];
+    item.nationPopRank = nationPopRankings[item.popupData.nation] || null;
+    item.nationClaimsRank = nationClaimsRankings[item.popupData.nation] || null;
+    item.foundedGrouping = foundedGroupings[item.popupData.name];
   });
 
   // Attach the array to the global window so the inline onclick can access it
@@ -668,6 +792,13 @@ function renderLayers() {
       item.marker.color = "#3457C1";
     }
 
+    // Get ranking border colors
+    const populationBorderColor = getRankingBorderColor(item.populationRank);
+    const claimsBorderColor = getRankingBorderColor(item.claimsRank);
+    const nationPopBorderColor = getRankingBorderColor(item.nationPopRank);
+    const nationClaimsBorderColor = getRankingBorderColor(item.nationClaimsRank);
+    const foundedBorderColor = FOUNDED_GROUPING_COLORS[item.foundedGrouping];
+
     // Default Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
       color: isOtherNation ? greyOutColor : item.marker.color,
@@ -677,30 +808,34 @@ function renderLayers() {
 
     // Population Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: isOtherNation ? greyOutColor : popColor,
+      color: isOtherNation ? greyOutColor : (populationBorderColor || popColor),
       fillColor: isOtherNation ? greyOutColor : popColor,
-      fillOpacity: 0.5
+      fillOpacity: 0.5,
+      weight: populationBorderColor ? 3 : item.marker.weight
     }).addTo(layerGroups.population);
 
     // Nation Population Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: isOtherNation ? greyOutColor : nationPopColor,
+      color: isOtherNation ? greyOutColor : (nationPopBorderColor || nationPopColor),
       fillColor: isOtherNation ? greyOutColor : nationPopColor,
-      fillOpacity: 0.5
+      fillOpacity: 0.5,
+      weight: nationPopBorderColor ? 3 : item.marker.weight
     }).addTo(layerGroups.nationPopulation);
 
     // Nation Claims Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: isOtherNation ? greyOutColor : nationClaimsColor,
+      color: isOtherNation ? greyOutColor : (nationClaimsBorderColor || nationClaimsColor),
       fillColor: isOtherNation ? greyOutColor : nationClaimsColor,
-      fillOpacity: 0.5
+      fillOpacity: 0.5,
+      weight: nationClaimsBorderColor ? 3 : item.marker.weight
     }).addTo(layerGroups.nationClaims);
 
     // Claims Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: isOtherNation ? greyOutColor : claimColor,
+      color: isOtherNation ? greyOutColor : (claimsBorderColor || claimColor),
       fillColor: isOtherNation ? greyOutColor : claimColor,
-      fillOpacity: 0.5
+      fillOpacity: 0.5,
+      weight: claimsBorderColor ? 3 : item.marker.weight
     }).addTo(layerGroups.claims);
 
     // Claim Limit Layer
@@ -712,9 +847,10 @@ function renderLayers() {
 
     // Founded Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: isOtherNation ? greyOutColor : foundedColor,
+      color: isOtherNation ? greyOutColor : (foundedBorderColor || foundedColor),
       fillColor: isOtherNation ? greyOutColor : foundedColor,
-      fillOpacity: 0.5
+      fillOpacity: 0.5,
+      weight: foundedBorderColor ? 3 : item.marker.weight
     }).addTo(layerGroups.founded);
 
     // Density Layer
@@ -746,6 +882,28 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
 
   const shieldStatus = item.hasOverclaimShield ? `<div class="popup-row"><span class="dr-shadow" style="font-size: 1.1em; color: #FFD700;">${t('shieldActive')}</span></div>` : '';
 
+  // Build ranking info HTML
+  let rankingInfo = '';
+
+  // Population ranking
+  if (item.populationRank && item.populationRank.rank !== 'none') {
+    const rankColor = RANKING_COLORS[item.populationRank.rank];
+    rankingInfo += `<div class="popup-row">${t('populationRank')}:&nbsp;<span class="dr-shadow" style="font-size: 1.1em; color:${rankColor}">Top ${item.populationRank.position}</span></div>`;
+  }
+
+  // Claims ranking
+  if (item.claimsRank && item.claimsRank.rank !== 'none') {
+    const rankColor = RANKING_COLORS[item.claimsRank.rank];
+    rankingInfo += `<div class="popup-row">${t('claimsRank')}:&nbsp;<span class="dr-shadow" style="font-size: 1.1em; color:${rankColor}">Top ${item.claimsRank.position}</span></div>`;
+  }
+
+  // Founded grouping
+  if (item.foundedGrouping && item.foundedGrouping !== 'other' && item.foundedGrouping !== 'unknown') {
+    const groupColor = FOUNDED_GROUPING_COLORS[item.foundedGrouping];
+    const groupLabels = {day: t('oldestDay'), week: t('oldest7Days'), month: t('oldest28Days')};
+    rankingInfo += `<div class="popup-row">${t('founded')}&nbsp;<span class="dr-shadow" style="font-size: 1.1em; color:${groupColor}">${groupLabels[item.foundedGrouping]}</span></div>`;
+  }
+
   return `
       <div class="infowindow">
         <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${escapeHtml(item.popupData.name)}</span><br>
@@ -754,6 +912,7 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
         ${shieldStatus}
         <div class="popup-row">${t('density')}: <span class="color-square" style="background-color:${densityColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Number.parseFloat(density.toFixed(3))}</span>&nbsp;<span style="font-size: 0.75em;">${t('popChunk')}</span></div>
         <div class="popup-row">${t('founded')}: <span class="color-square" style="background-color:${foundedColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${escapeHtml(item.popupData.founded)}</span></div>
+        ${rankingInfo}
         <br>
         ${item.popupData.nation ? `${t('nation')}: <b class="dr-shadow nation-link" style="font-size: 1.1em;" onclick="openNationPanel('${safeNationName}')">${nationNameStr}</b><br>` : ''}
         <div class="popup-row">${t('nationClaimsLabel')}: <span class="color-square" style="background-color:${nationClaimsColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.nationClaims)}</span></div>
@@ -959,12 +1118,13 @@ function updateLegend() {
   }
 
   if (currentMode === 'founded') {
-    // Gradient for dates
+    // Gradient for dates + founded groupings
     const minDateStr = new Date(minDateGlobal).toLocaleDateString();
     const maxDateStr = new Date(maxDateGlobal).toLocaleDateString();
 
     legendContent.innerHTML = `
       <div class="flex flex-col gap-1">
+        <div style="font-weight: bold; margin-bottom: 0.5em;">${t('valueGradient')}:</div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: hsl(240, 100%, 50%)"></div>
           <span>${t('oldest')} (${minDateStr})</span>
@@ -973,6 +1133,19 @@ function updateLegend() {
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: hsl(0, 100%, 50%)"></div>
           <span>${t('newest')} (${maxDateStr})</span>
+        </div>
+        <div style="font-weight: bold; margin-top: 1em; margin-bottom: 0.5em;">${t('rankings')}:</div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border bg-gray-600" style="border-color: #FFD700; border-width: 2px;"></div>
+          <span>${t('oldestDay')}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border bg-gray-600" style="border-color: #C0C0C0; border-width: 2px;"></div>
+          <span>${t('oldest7Days')}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border bg-gray-600" style="border-color: #CD7F32; border-width: 2px;"></div>
+          <span>${t('oldest28Days')}</span>
         </div>
       </div>
     `;
@@ -1002,6 +1175,47 @@ function updateLegend() {
   else if (currentMode === 'nationClaims') gradient = NATION_CLAIMS_GRADIENT;
 
   if (gradient.length > 0) {
+    // Add ranking legend for modes that support it
+    if (['population', 'claims', 'nationPopulation', 'nationClaims'].includes(currentMode)) {
+      const rankingTitle = document.createElement('div');
+      rankingTitle.className = 'font-bold mb-2';
+      rankingTitle.textContent = t('rankings');
+      legendContent.appendChild(rankingTitle);
+
+      const goldRow = document.createElement('div');
+      goldRow.className = 'flex items-center gap-2';
+      goldRow.innerHTML = `
+        <div class="w-4 h-4 border-3 bg-gray-600" style="border-color: #FFD700"></div>
+        <span>${t('top1')}</span>
+      `;
+      legendContent.appendChild(goldRow);
+
+      const silverRow = document.createElement('div');
+      silverRow.className = 'flex items-center gap-2';
+      silverRow.innerHTML = `
+        <div class="w-4 h-4 border-3 bg-gray-600" style="border-color: #C0C0C0"></div>
+        <span>${t('top3')}</span>
+      `;
+      legendContent.appendChild(silverRow);
+
+      const bronzeRow = document.createElement('div');
+      bronzeRow.className = 'flex items-center gap-2';
+      bronzeRow.innerHTML = `
+        <div class="w-4 h-4 border-3 bg-gray-600" style="border-color: #CD7F32"></div>
+        <span>${t('top10')}</span>
+      `;
+      legendContent.appendChild(bronzeRow);
+
+      const spacer = document.createElement('div');
+      spacer.style.height = '1em';
+      legendContent.appendChild(spacer);
+
+      const gradientTitle = document.createElement('div');
+      gradientTitle.className = 'font-bold mb-2';
+      gradientTitle.textContent = t('valueGradient');
+      legendContent.appendChild(gradientTitle);
+    }
+
     gradient.forEach((step, index) => {
       let label = `>= ${step.min}`;
 
