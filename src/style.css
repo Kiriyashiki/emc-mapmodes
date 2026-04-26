@@ -6,9 +6,13 @@ html, body {
   margin: 0;
 }
 
-.leaflet-container .leaflet-tile {
-  image-rendering: pixelated;
+.leaflet-tile {
+  /* Safari */
+  image-rendering: -webkit-optimize-contrast;
+  /* Firefox */
   image-rendering: crisp-edges;
+  /* Chrome/Edge/Standard */
+  image-rendering: pixelated;
 }
 
 /* Dark Mode Popup */

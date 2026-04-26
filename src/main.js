@@ -88,7 +88,43 @@ const map = L.map('map', {
   ]
 });
 
-L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
+// Custom tile layer using fetch
+const FetchTileLayer = L.GridLayer.extend({
+  createTile: function (coords) {
+    const tile = document.createElement('img');
+    const size = this.getTileSize();
+    tile.width = size.x;
+    tile.height = size.y;
+    tile.style.imageRendering = "pixelated";
+    tile.style.imageRendering = "-webkit-optimize-contrast";
+    tile.style.imageRendering = "crisp-edges";
+    tile.style.msInterpolationMode = "nearest-neighbor";
+
+    const tileUrl = `${baseUrlCors}${baseUrl}/${coords.z}/${coords.x}_${coords.y}.png`;
+
+    fetch(tileUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Tile fetch failed: ${response.status}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        tile.src = url;
+        tile.onload = () => {
+          URL.revokeObjectURL(url);
+        };
+      })
+      .catch(error => {
+        console.error(`Error fetching tile ${tileUrl}:`, error);
+      });
+
+    return tile;
+  }
+});
+
+const tileLayer = new FetchTileLayer({
   tileSize: tileSize,
   minZoom: minZoom,
   maxZoom: maxZoom,
@@ -96,7 +132,10 @@ L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
   maxNativeZoom: maxNativeZoom,
   noWrap: true,
   attribution: 'Map Data <a href="https://map.earthmc.net/">EMC</a>'
-}).addTo(map);
+});
+
+
+tileLayer.addTo(map);
 
 // Grid Layer
 const GridLayer = L.GridLayer.extend({
