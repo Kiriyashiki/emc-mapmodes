@@ -253,6 +253,7 @@ let activeNation = null;
 let activeNationData = null;
 let allTownsDataCache = null;
 let lastTownDataLoadTime = null;
+let rankingsOutlinesEnabled = localStorage.getItem('emc-mapmodes-rankings-outlines') !== 'false';
 
 // Ranking colors
 const RANKING_COLORS = {
@@ -355,7 +356,7 @@ function calculateNationRankings(data, metric) {
 
 // Get border color based on ranking
 function getRankingBorderColor(rankingInfo) {
-  if (!rankingInfo) return null;
+  if (!rankingsOutlinesEnabled || !rankingInfo) return null;
   return RANKING_COLORS[rankingInfo.rank] || null;
 }
 
@@ -836,7 +837,7 @@ function renderLayers() {
     const claimsBorderColor = getRankingBorderColor(item.claimsRank);
     const nationPopBorderColor = getRankingBorderColor(item.nationPopRank);
     const nationClaimsBorderColor = getRankingBorderColor(item.nationClaimsRank);
-    const foundedBorderColor = FOUNDED_GROUPING_COLORS[item.foundedGrouping];
+    const foundedBorderColor = rankingsOutlinesEnabled ? FOUNDED_GROUPING_COLORS[item.foundedGrouping] : null;
 
     // Default Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
@@ -1032,6 +1033,7 @@ function setupSettings() {
   const settingsPopup = document.getElementById('settings-popup');
   const langSelect = document.getElementById('lang-select');
   const gridToggle = document.getElementById('grid-toggle');
+  const rankingsToggle = document.getElementById('rankings-toggle');
 
   if (settingsBtn && settingsPopup) {
     settingsBtn.onclick = () => {
@@ -1068,6 +1070,16 @@ function setupSettings() {
         } else {
           map.removeLayer(gridLayer);
         }
+      };
+    }
+
+    // Rankings Outlines Toggle
+    if (rankingsToggle) {
+      rankingsToggle.checked = rankingsOutlinesEnabled;
+      rankingsToggle.onchange = (e) => {
+        rankingsOutlinesEnabled = e.target.checked;
+        localStorage.setItem('emc-mapmodes-rankings-outlines', rankingsOutlinesEnabled);
+        renderLayers();
       };
     }
   }
@@ -1111,6 +1123,12 @@ function updateUIText() {
 
   const townDataLabel = document.getElementById('town-data-label');
   if (townDataLabel) townDataLabel.innerText = t('townData');
+
+  const rankingsLabel = document.getElementById('rankings-label');
+  if (rankingsLabel) rankingsLabel.innerText = t('rankingsOutlines');
+
+  const rankingsText = document.getElementById('rankings-text');
+  if (rankingsText) rankingsText.innerText = t('rankingsOutlines');
 }
 
 function updateLegend() {

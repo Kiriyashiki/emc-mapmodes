@@ -45,7 +45,8 @@ export const translations = {
     oldestDay: "First Day",
     oldest7Days: "Oldest 7 Days",
     oldest28Days: "Oldest 28 Days",
-    townData: "Town Data"
+    townData: "Town Data",
+    rankingsOutlines: "Rankings Outlines"
   },
   ja: {
     name: "日本語",
@@ -93,7 +94,8 @@ export const translations = {
     oldestDay: "最古の日",
     oldest7Days: "最古の7日",
     oldest28Days: "最古の28日",
-    townData: "町データ"
+    townData: "町データ",
+    rankingsOutlines: "ランキングアウトライン"
   },
   fr: {
     name: "Français",
@@ -141,7 +143,8 @@ export const translations = {
     oldestDay: "Premier Jour",
     oldest7Days: "Plus Anciens 7 Jours",
     oldest28Days: "Plus Anciens 28 Jours",
-    townData: "Données de Ville"
+    townData: "Données de Ville",
+    rankingsOutlines: "Contours des Classements"
   },
   id: {
     name: "Bahasa Indonesia",
@@ -188,7 +191,8 @@ export const translations = {
     oldestDay: "First Day", // todo
     oldest7Days: "Oldest 7 Days", // todo
     oldest28Days: "Oldest 28 Days", // todo
-    townData: "Town Data" // todo
+    townData: "Town Data", // todo
+    rankingsOutlines: "Rankings Outlines" // todo
   },
   hi: {
     name: "हिंदी",
@@ -236,6 +240,7 @@ export const translations = {
     oldestDay: "First Day", // todo
     oldest7Days: "Oldest 7 Days", // todo
     oldest28Days: "Oldest 28 Days", // todo
-    townData: "Town Data" // todo
+    townData: "Town Data", // todo
+    rankingsOutlines: "Rankings Outlines" // todo
   },
 };
