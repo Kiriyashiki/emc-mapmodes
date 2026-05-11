@@ -451,6 +451,53 @@ function fetchMarkers() {
     });
 }
 
+// Helper function to fetch with timeout and retry
+async function fetchTownBatch(batch) {
+  const timeout = 5000; // 5 seconds
+  const maxRetries = 1; // Retry once if failed
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(`${baseUrlApi}/towns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: batch,
+          template: {
+            name: true,
+            coordinates: true,
+            status: true,
+            stats: true
+          }
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      if (attempt < maxRetries) {
+        console.warn(`Attempt ${attempt + 1} failed for town batch, retrying...`, error);
+      } else {
+        console.error(`Failed to fetch town batch after ${maxRetries + 1} attempt(s):`, error);
+        return [];
+      }
+    }
+  }
+  return [];
+}
+
 async function loadTownDataAtStartup() {
   try {
     // Try to load from IndexedDB cache first
@@ -471,34 +518,26 @@ async function loadTownDataAtStartup() {
       const townNames = processedMarkersData.map(item => item.popupData.name);
       const results = [];
       const batchSize = 100;
+      const maxParallel = 3; // Run up to 3 calls in parallel
 
+      // Create all batches
+      const batches = [];
       for (let i = 0; i < townNames.length; i += batchSize) {
-        const batch = townNames.slice(i, i + batchSize);
-        try {
-          const response = await fetch(`${baseUrlApi}/towns`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              query: batch,
-              template: {
-                name: true,
-                coordinates: true,
-                status: true,
-                stats: true
-              }
-            })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data)) {
-              results.push(...data);
-            }
+        batches.push(townNames.slice(i, i + batchSize));
+      }
+
+      // Process batches in parallel groups
+      for (let i = 0; i < batches.length; i += maxParallel) {
+        const batchGroup = batches.slice(i, i + maxParallel);
+        const promises = batchGroup.map(batch => fetchTownBatch(batch));
+        const batchResults = await Promise.all(promises);
+
+        // Flatten and collect results
+        batchResults.forEach(batchData => {
+          if (Array.isArray(batchData)) {
+            results.push(...batchData);
           }
-        } catch (error) {
-          console.error("Error fetching town batch:", error);
-        }
+        });
       }
 
       if (results.length > 0) {
@@ -634,40 +673,6 @@ function loadTurf() {
     script.onerror = () => reject(new Error('Failed to load Turf.js'));
     document.head.appendChild(script);
   });
-}
-
-// Batch size max 100
-async function fetchTownsInBatches(townNames, batchSize = 100) {
-  const results = [];
-  for (let i = 0; i < townNames.length; i += batchSize) {
-    const batch = townNames.slice(i, i + batchSize);
-    try {
-      const response = await fetch(`${baseUrlApi}/towns`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          query: batch,
-          template: {
-            name: true,
-            coordinates: true,
-            status: true,
-            stats: true
-          }
-        })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          results.push(...data);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching town batch:", error);
-    }
-  }
-  return results;
 }
 
 function enrichProcessedDataWithApiData(apiData) {
