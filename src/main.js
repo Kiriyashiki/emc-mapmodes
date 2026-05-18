@@ -660,6 +660,14 @@ function getNationBonus(nationPop) {
   return 0;
 }
 
+// Check if a town was founded less than 30 days ago
+function isNewTown(foundedTs) {
+  if (foundedTs === null || foundedTs === undefined) return false;
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  return (now - foundedTs) < thirtyDaysMs;
+}
+
 // Ensure Turf.js is loaded
 function loadTurf() {
   return new Promise((resolve, reject) => {
@@ -843,6 +851,7 @@ function renderLayers() {
     const nationPopBorderColor = getRankingBorderColor(item.nationPopRank);
     const nationClaimsBorderColor = getRankingBorderColor(item.nationClaimsRank);
     const foundedBorderColor = rankingsOutlinesEnabled ? FOUNDED_GROUPING_COLORS[item.foundedGrouping] : null;
+    const newTownBorderColor = isNewTown(item.foundedTs) ? '#101010 ' : null;
 
     // Default Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
@@ -885,9 +894,9 @@ function renderLayers() {
 
     // Claim Limit Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
-      color: isOtherNation ? greyOutColor : claimLimitColor,
+      color: isOtherNation ? greyOutColor : (newTownBorderColor || claimLimitColor),
       fillColor: isOtherNation ? greyOutColor : claimLimitColor,
-      fillOpacity: 0.5
+      fillOpacity: 0.5,
     }).addTo(layerGroups.claimLimit);
 
     // Founded Layer
@@ -1173,6 +1182,10 @@ function updateLegend() {
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #FF0000"></div>
           <span>${t('overLimit')}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 border bg-gray-600" style="border-color: #101010; border-width: 2px;"></div>
+          <span>${t('founded')} &lt; 30 ${t('days')}</span>
         </div>
       </div>
     `;
