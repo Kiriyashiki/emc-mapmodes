@@ -149,15 +149,13 @@ const GridLayer = L.GridLayer.extend({
 
     // Calculate grid size based on zoom level
     // At maxNativeZoom (3), 1 pixel = 1 block
-    // We want 16x16 block grid
     const zoomScale = Math.pow(2, coords.z - maxNativeZoom);
     const blockSize = 16 * zoomScale;
-    const bigBlockSize = 512 * zoomScale;
+    const bigBlockSize = 544 * zoomScale;
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
 
-    // Draw 16x16 grid
     if (blockSize >= 4) { // Only draw if grid is visible enough
       ctx.beginPath();
       for (let x = 0; x <= size.x; x += blockSize) {
@@ -171,7 +169,6 @@ const GridLayer = L.GridLayer.extend({
       ctx.stroke();
     }
 
-    // Draw 512x512 grid (thicker)
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.lineWidth = 2;
     ctx.beginPath();
