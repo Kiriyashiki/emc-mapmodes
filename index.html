@@ -69,12 +69,17 @@
     </div>
     <div>
       <h4 class="font-bold mb-1 border-b border-gray-600 pb-1" id="grid-label">Grid</h4>
-      <label class="flex items-center gap-2 cursor-pointer">
+      <label class="flex items-center gap-2 cursor-pointer mb-2">
         <input class="form-checkbox h-4 w-4 text-blue-600 rounded focus:ring-blue-500 bg-gray-700 border-gray-600"
                id="grid-toggle"
                type="checkbox">
         <span id="grid-text">Show Chunk Grid</span>
       </label>
+      <h5 class="font-bold mb-1 border-b border-gray-600 pb-1" id="grid-mode-label">Large Grid</h5>
+      <select class="text-left px-2 py-1 bg-gray-700 text-white rounded w-full" id="grid-mode-select">
+        <option value="1" id="grid-1">544x (Trial Chambers)</option>
+        <option value="2" id="grid-2">128x (Map Art)</option>
+      </select>
     </div>
     <div>
       <h4 class="font-bold mb-1 border-b border-gray-600 pb-1" id="rankings-label">Rankings Outlines</h4>

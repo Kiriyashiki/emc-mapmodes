@@ -138,6 +138,8 @@ const tileLayer = new FetchTileLayer({
 tileLayer.addTo(map);
 
 // Grid Layer
+let gridMode = localStorage.getItem('emc-mapmodes-grid-mode') || '1';
+
 const GridLayer = L.GridLayer.extend({
   createTile: function (coords) {
     const tile = document.createElement('canvas');
@@ -151,7 +153,16 @@ const GridLayer = L.GridLayer.extend({
     // At maxNativeZoom (3), 1 pixel = 1 block
     const zoomScale = Math.pow(2, coords.z - maxNativeZoom);
     const blockSize = 16 * zoomScale;
-    const bigBlockSize = 544 * zoomScale;
+    
+    let bigBlockSize = 544 * zoomScale;
+    let bigBlockOffsetX = 272 * zoomScale;
+    let bigBlockOffsetY = 272 * zoomScale;
+    
+    if (gridMode === '2') {
+      bigBlockSize = 128 * zoomScale;
+      bigBlockOffsetX = 64 * zoomScale;
+      bigBlockOffsetY = 64 * zoomScale;
+    }
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
@@ -176,8 +187,8 @@ const GridLayer = L.GridLayer.extend({
     const tileX = coords.x * size.x;
     const tileY = coords.y * size.y;
 
-    const startX = (bigBlockSize - (((tileX % bigBlockSize) + bigBlockSize) % bigBlockSize)) % bigBlockSize;
-    const startY = (bigBlockSize - (((tileY % bigBlockSize) + bigBlockSize) % bigBlockSize)) % bigBlockSize;
+    const startX = (bigBlockSize - (((tileX - bigBlockOffsetX) % bigBlockSize) + bigBlockSize) % bigBlockSize) % bigBlockSize;
+    const startY = (bigBlockSize - (((tileY - bigBlockOffsetY) % bigBlockSize) + bigBlockSize) % bigBlockSize) % bigBlockSize;
 
     for (let x = startX; x <= size.x; x += bigBlockSize) {
       ctx.moveTo(x, 0);
@@ -1044,6 +1055,7 @@ function setupSettings() {
   const settingsPopup = document.getElementById('settings-popup');
   const langSelect = document.getElementById('lang-select');
   const gridToggle = document.getElementById('grid-toggle');
+  const gridModeSelect = document.getElementById('grid-mode-select');
   const rankingsToggle = document.getElementById('rankings-toggle');
 
   if (settingsBtn && settingsPopup) {
@@ -1080,6 +1092,18 @@ function setupSettings() {
           gridLayer.addTo(map);
         } else {
           map.removeLayer(gridLayer);
+        }
+      };
+    }
+
+    // Grid Mode Select
+    if (gridModeSelect) {
+      gridModeSelect.value = gridMode;
+      gridModeSelect.onchange = (e) => {
+        gridMode = e.target.value;
+        localStorage.setItem('emc-mapmodes-grid-mode', gridMode);
+        if (map.hasLayer(gridLayer)) {
+          gridLayer.redraw();
         }
       };
     }
@@ -1131,6 +1155,15 @@ function updateUIText() {
 
   const gridText = document.getElementById('grid-text');
   if (gridText) gridText.innerText = t('chunkGrid');
+
+  const gridModeLabel = document.getElementById('grid-mode-label');
+  if (gridModeLabel) gridModeLabel.innerText = t('gridMode');
+
+  const gridIchi = document.getElementById('grid-1');
+  if (gridIchi) gridIchi.innerText = t('grid1');
+
+  const gridNi = document.getElementById('grid-2');
+  if (gridNi) gridNi.innerText = t('grid2');
 
   const townDataLabel = document.getElementById('town-data-label');
   if (townDataLabel) townDataLabel.innerText = t('townData');

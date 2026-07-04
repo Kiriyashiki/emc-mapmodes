@@ -27,6 +27,9 @@ export const translations = {
     public: "Public",
     nation: "Nation",
     chunkGrid: "Chunk Grid",
+    gridMode: "Large Grid",
+    grid1: "544x (Trial Chambers)",
+    grid2: "128x (Map Art)",
     nationClaimsLabel: "Nation Claims",
     nationPopLabel: "Nation Pop",
     nationTownsLabel: "Nation Towns",
@@ -77,6 +80,9 @@ export const translations = {
     public: "パブリック",
     nation: "国",
     chunkGrid: "チャンクグリッド",
+    gridMode: "大きなグリッド",
+    grid1: "544x （トライアルチャンバー）",
+    grid2: "128x （マプア）",
     nationClaimsLabel: "国のチャンク",
     nationPopLabel: "国の人口",
     nationTownsLabel: "国の町",
@@ -127,6 +133,9 @@ export const translations = {
     public: "Public",
     nation: "Nation",
     chunkGrid: "Grille des Chunks",
+    gridMode: "Grande grille",
+    grid1: "544x (Chambres des épreuves)",
+    grid2: "128x (Map Art)",
     nationClaimsLabel: "Territoire Nation",
     nationPopLabel: "Pop Nation",
     nationTownsLabel: "Villes Nation",
@@ -177,6 +186,9 @@ export const translations = {
     public: "Publik",
     nation: "Negara",
     chunkGrid: "Garis Perbatasan Chunk",
+    gridMode: "Large Grid", // todo
+    grid1: "544x (Trial Chambers)", // todo
+    grid2: "128x (Map Art)", // todo
     nationClaimsLabel: "Luas Teritori Negara",
     nationPopLabel: "Populasi Negara",
     nationTownsLabel: "Nation Towns", // todo
@@ -226,6 +238,9 @@ export const translations = {
     public: "सार्वजनिक",
     nation: "राष्ट्र",
     chunkGrid: "चंक ग्रिड",
+    gridMode: "Large Grid", // todo
+    grid1: "544x (Trial Chambers)", // todo
+    grid2: "128x (Map Art)", // todo
     nationClaimsLabel: "राष्ट्र के दावे",
     nationPopLabel: "राष्ट्र की जनसंख्या",
     nationTownsLabel: "राष्ट्र के शहर",
