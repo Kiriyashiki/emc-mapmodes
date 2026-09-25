@@ -100,7 +100,7 @@ const FetchTileLayer = L.GridLayer.extend({
     tile.style.imageRendering = "crisp-edges";
     tile.style.msInterpolationMode = "nearest-neighbor";
 
-    const tileUrl = `${baseUrlCors}${baseUrl}/${coords.z}/${coords.x}_${coords.y}.png`;
+    const tileUrl = `${baseUrl}/${coords.z}/${coords.x}_${coords.y}.png`;
 
     fetch(tileUrl)
       .then(response => {
