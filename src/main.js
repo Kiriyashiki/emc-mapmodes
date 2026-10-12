@@ -10,12 +10,10 @@ import {
 import {translations} from "./tl.js";
 
 // Configuration
-const baseUrl = 'https://aurora.earthmc.net/tiles/minecraft_overworld';
-const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
-const maxNativeZoom = 3;
-const maxZoom = 4;
-const minZoom = -1;
-const tileSize = 512;
+const maxNativeZoom = 0;
+const maxZoom = 2;
+const minZoom = -6;
+const tileSize = 256;
 
 // Calculate transformation factor to ensure 1 map unit = 1 pixel at maxNativeZoom
 const scaleFactor = 1 / Math.pow(2, maxNativeZoom);
@@ -36,11 +34,21 @@ const map = L.map('map', {
   ]
 });
 
-L.tileLayer(`${baseUrl}/{z}/{x}_{y}.png`, {
+const MinecraftTileLayer = L.TileLayer.extend({
+  getTileUrl(coords) {
+    const z = this._getZoomForUrl();
+    const { x, y } = coords;
+    const fx = Math.floor(x / 10);
+    const fy = Math.floor(y / 10);
+    return `./map/tiles/zoom.${z}/${fx}/${fy}/tile.${x}.${y}.webp`;
+  }
+});
+
+new MinecraftTileLayer('', {
   tileSize: tileSize,
   minZoom: minZoom,
   maxZoom: maxZoom,
-  minNativeZoom: 0,
+  minNativeZoom: -6,
   maxNativeZoom: maxNativeZoom,
   noWrap: true,
   attribution: 'Map Data <a href="https://aurora.earthmc.net/">EMC</a>'
@@ -236,7 +244,7 @@ fetchMarkers()
   });
 
 function fetchMarkers() {
-  return fetch(`${baseUrlCors}${baseUrl}/markers.json`)
+  return fetch(`./aurora_markers.json`)
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
