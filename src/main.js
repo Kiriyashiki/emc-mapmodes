@@ -209,6 +209,7 @@ const gridLayer = new GridLayer({tileSize: tileSize, minZoom: minZoom, maxZoom: 
 // Layer Groups
 const layerGroups = {
   default: L.layerGroup(),
+  populationActive: L.layerGroup(),
   population: L.layerGroup(),
   claims: L.layerGroup(),
   claimLimit: L.layerGroup(),
@@ -244,6 +245,7 @@ function t(key) {
 
 const layerKeys = {
   default: "political",
+  populationActive: "populationActive",
   population: "population",
   claims: "claims",
   claimLimit: "claimLimit",
@@ -272,6 +274,11 @@ const RANKING_COLORS = {
 
 function getColor(val, grad) {
   return grad.find(s => val >= s.min)?.color || "#000000";
+}
+
+// Active population reported by the API, falling back to the popup count when unavailable
+function getActivePop(item) {
+  return item.numResidents ?? item.pop;
 }
 
 function getDateColor(ts, min, max) {
@@ -327,25 +334,22 @@ function calculateRankings(data, metric) {
 
 // Calculate rankings for nations by a metric
 function calculateNationRankings(data, metric) {
-  // Group by nation and aggregate
-  const nationAggregates = {};
+  // These metrics already hold the nation total on every town of that nation,
+  // so keep a single value per nation instead of adding it once per town.
+  const nationValues = {};
 
   data.forEach(item => {
-    if (item.popupData.nation) {
-      const nation = item.popupData.nation;
-      if (!nationAggregates[nation]) {
-        nationAggregates[nation] = {[metric]: 0};
-      }
-      nationAggregates[nation][metric] += item[metric];
+    if (item.popupData.nation && !(item.popupData.nation in nationValues)) {
+      nationValues[item.popupData.nation] = item[metric];
     }
   });
 
   // Sort and rank
-  const sorted = Object.entries(nationAggregates)
-    .sort((a, b) => b[1][metric] - a[1][metric]);
+  const sorted = Object.entries(nationValues)
+    .sort((a, b) => b[1] - a[1]);
 
   const rankings = {};
-  sorted.forEach(([nation, stats], index) => {
+  sorted.forEach(([nation, value], index) => {
     let rank = 'none';
 
     if (index === 0) {
@@ -356,7 +360,7 @@ function calculateNationRankings(data, metric) {
       rank = 'bronze';
     }
 
-    rankings[nation] = {rank, position: index + 1, value: stats[metric]};
+    rankings[nation] = {rank, position: index + 1, value};
   });
 
   return rankings;
@@ -570,11 +574,50 @@ async function loadTownDataAtStartup() {
   }
 }
 
+// Aggregate nation statistics from town data, preferring the API active population
+function updateNationStats() {
+  const nationData = {};
+
+  processedMarkersData.forEach(item => {
+    if (!item.popupData.nation) return;
+    const nation = item.popupData.nation;
+    if (!nationData[nation]) {
+      nationData[nation] = {population: 0, claims: 0, towns: 0};
+    }
+    nationData[nation].population += getActivePop(item);
+    nationData[nation].claims += item.area;
+    nationData[nation].towns += 1;
+  });
+
+  processedMarkersData.forEach(item => {
+    const stats = item.popupData.nation ? nationData[item.popupData.nation] : null;
+    item.nationPop = stats ? stats.population : 0;
+    item.nationClaims = stats ? stats.claims : 0;
+    item.nationTowns = stats ? stats.towns : 0;
+  });
+
+  const nationPopRankings = calculateNationRankings(processedMarkersData, 'nationPop');
+  processedMarkersData.forEach(item => {
+    item.nationPopRank = nationPopRankings[item.popupData.nation] || null;
+  });
+}
+
+// Active population per town and its own town rankings
+function updateActivePopulationStats() {
+  processedMarkersData.forEach(item => {
+    item.activePop = getActivePop(item);
+  });
+
+  const activePopRankings = calculateRankings(processedMarkersData, 'activePop');
+  processedMarkersData.forEach(item => {
+    item.activePopRank = activePopRankings[item.popupData.name] || null;
+  });
+}
+
 function processMarkers(layer) {
   const markers = layer.markers;
 
   const processed = [];
-  const nationData = {};
   let minDate = Infinity;
   let maxDate = -Infinity;
 
@@ -587,19 +630,6 @@ function processMarkers(layer) {
         const residents = popupData.residents.filter(r => r.trim().length > 0);
         const pop = residents.length;
         const area = calculatePolygonArea(marker.points) / 256;
-
-        if (popupData.nation) {
-          if (!nationData[popupData.nation]) {
-            nationData[popupData.nation] = {
-              "population": 0,
-              "claims": 0,
-              "towns": 0
-            }
-          }
-          nationData[popupData.nation]["population"] += pop;
-          nationData[popupData.nation]["claims"] += area;
-          nationData[popupData.nation]["towns"] += 1;
-        }
 
         const dateStr = popupData.founded;
         const dateTs = Date.parse(dateStr);
@@ -624,22 +654,15 @@ function processMarkers(layer) {
   maxDateGlobal = maxDate;
 
   // Store processed data for re-rendering
-  processedMarkersData = processed.map(item => {
-    let nationPop = 0;
-    let nationClaims = 0;
-    let nationTowns = 0;
-    if (item.popupData.nation) {
-      nationPop = nationData[item.popupData.nation]["population"] || 0;
-      nationClaims = nationData[item.popupData.nation]["claims"] || 0;
-      nationTowns = nationData[item.popupData.nation]["towns"] || 0;
-    }
-    return {...item, nationPop, nationClaims, nationTowns};
-  });
+  processedMarkersData = processed;
+
+  // Aggregate nation stats (uses the API active population when available)
+  updateNationStats();
+  updateActivePopulationStats();
 
   // Calculate rankings
   const populationRankings = calculateRankings(processedMarkersData, 'pop');
   const claimsRankings = calculateRankings(processedMarkersData, 'area');
-  const nationPopRankings = calculateNationRankings(processedMarkersData, 'nationPop');
   const nationClaimsRankings = calculateNationRankings(processedMarkersData, 'nationClaims');
   const foundedGroupings = calculateFoundedGroupings(processedMarkersData, minDateGlobal, maxDateGlobal);
 
@@ -647,7 +670,6 @@ function processMarkers(layer) {
   processedMarkersData.forEach(item => {
     item.populationRank = populationRankings[item.popupData.name];
     item.claimsRank = claimsRankings[item.popupData.name];
-    item.nationPopRank = nationPopRankings[item.popupData.nation] || null;
     item.nationClaimsRank = nationClaimsRankings[item.popupData.nation] || null;
     item.foundedGrouping = foundedGroupings[item.popupData.name];
   });
@@ -706,9 +728,14 @@ function enrichProcessedDataWithApiData(apiData) {
     if (apiTown) {
       item.apiData = apiTown;
       item.maxTownBlocks = apiTown.stats?.maxTownBlocks || null;
+      item.numResidents = apiTown.stats?.numResidents || null;
       item.hasOverclaimShield = apiTown.status?.hasOverclaimShield || false;
     }
   });
+
+  // Nation population and its rankings now rely on the API active population
+  updateNationStats();
+  updateActivePopulationStats();
 }
 
 function drawNationRange() {
@@ -804,11 +831,13 @@ function renderLayers() {
   processedMarkersData.forEach(item => {
     // Calculate colors
     const popColor = getColor(item.pop, POPULATION_GRADIENT);
+    const activePop = getActivePop(item);
+    const activePopColor = getColor(activePop, POPULATION_GRADIENT);
     const nationPopColor = item.popupData.nation ? getColor(item.nationPop, NATION_POPULATION_GRADIENT) : "#606060";
     const nationClaimsColor = item.popupData.nation ? getColor(item.nationClaims, NATION_CLAIMS_GRADIENT) : "#606060";
     const claimColor = getColor(item.area, CLAIMS_GRADIENT);
 
-    const density = item.area > 0 ? item.pop / item.area : 0;
+    const density = item.area > 0 ? activePop / item.area : 0;
     const densityColor = getDensityColor(density);
 
     let foundedColor = "#000000";
@@ -847,7 +876,7 @@ function renderLayers() {
     const greyOutColor = '#606060';
 
     // Create Popup Content
-    const popupContent = getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor);
+    const popupContent = getPopupContent(item, popColor, activePopColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor);
 
     if (!item.marker.color) {
       item.marker.color = "#3457C1";
@@ -855,6 +884,7 @@ function renderLayers() {
 
     // Get ranking border colors
     const populationBorderColor = getRankingBorderColor(item.populationRank);
+    const activePopBorderColor = getRankingBorderColor(item.activePopRank);
     const claimsBorderColor = getRankingBorderColor(item.claimsRank);
     const nationPopBorderColor = getRankingBorderColor(item.nationPopRank);
     const nationClaimsBorderColor = getRankingBorderColor(item.nationClaimsRank);
@@ -875,6 +905,14 @@ function renderLayers() {
       fillOpacity: 0.5,
       weight: populationBorderColor ? 3 : item.marker.weight
     }).addTo(layerGroups.population);
+
+    // Active Population Layer
+    createPolygon(item.latlngs, item.marker, popupContent, {
+      color: isOtherNation ? greyOutColor : (activePopBorderColor || activePopColor),
+      fillColor: isOtherNation ? greyOutColor : activePopColor,
+      fillOpacity: 0.5,
+      weight: activePopBorderColor ? 3 : item.marker.weight
+    }).addTo(layerGroups.populationActive);
 
     // Nation Population Layer
     createPolygon(item.latlngs, item.marker, popupContent, {
@@ -934,7 +972,7 @@ function escapeHtml(text) {
     .replaceAll('\'', "&#039;");
 }
 
-function getPopupContent(item, popColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor) {
+function getPopupContent(item, popColor, activePopColor, claimColor, densityColor, foundedColor, nationPopColor, nationClaimsColor, density, claimLimit, diff, claimLimitColor) {
   const displayDiff = -diff;
   const diffSign = displayDiff > 0 ? '+' : '';
   const diffColor = diff > 0 ? '#00FF00' : (diff < 0 ? '#FF0000' : '#FFFF00');
@@ -946,6 +984,12 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
 
   // Build ranking info HTML
   let rankingInfo = '';
+
+  // Active population ranking
+  if (item.activePopRank && item.activePopRank.rank !== 'none') {
+    const rankColor = RANKING_COLORS[item.activePopRank.rank];
+    rankingInfo += `<div class="popup-row">${t('populationActiveRank')}:&nbsp;<span class="dr-shadow" style="font-size: 1.1em; color:${rankColor}">Top ${item.activePopRank.position}</span></div>`;
+  }
 
   // Population ranking
   if (item.populationRank && item.populationRank.rank !== 'none') {
@@ -969,6 +1013,7 @@ function getPopupContent(item, popColor, claimColor, densityColor, foundedColor,
   return `
       <div class="infowindow">
         <span class="dr-shadow" style="font-size: 1.3em; font-weight: bold;">${escapeHtml(item.popupData.name)}</span><br>
+        <div class="popup-row">${t('populationActive')}: <span class="color-square" style="background-color:${activePopColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${getActivePop(item)}</span></div>
         <div class="popup-row">${t('population')}: <span class="color-square" style="background-color:${popColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${item.pop}</span></div>
         <div class="popup-row">${t('claims')}: <span class="color-square" style="background-color:${claimColor}"></span><span class="dr-shadow" style="font-size: 1.1em;">${Math.round(item.area)} / ${claimLimit} [<span style="color:${diffColor}">${diffSign}${displayDiff}</span>]</span></div>
         ${shieldStatus}
@@ -1189,25 +1234,13 @@ function updateLegend() {
   if (currentMode === 'claimLimit') {
     legendContent.innerHTML = `
       <div class="flex flex-col gap-1">
-      <div class="flex items-center gap-2">
-          <div class="w-4 h-4 border border-white" style="background-color: #00A500"></div>
-          <span>${t('underLimit')} (${t('shield')})</span>
-        </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #00FF00"></div>
           <span>${t('underLimit')}</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-4 h-4 border border-white" style="background-color: #B7FF00"></div>
-          <span>${t('atLimit')} (${t('shield')})</span>
-        </div>
-        <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #FFFF00"></div>
           <span>${t('atLimit')}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="w-4 h-4 border border-white" style="background-color: #FFA500"></div>
-          <span>${t('overLimit')} (${t('shield')})</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="w-4 h-4 border border-white" style="background-color: #FF0000"></div>
@@ -1274,14 +1307,14 @@ function updateLegend() {
   }
 
   let gradient = [];
-  if (currentMode === 'population') gradient = POPULATION_GRADIENT;
+  if (currentMode === 'population' || currentMode === 'populationActive') gradient = POPULATION_GRADIENT;
   else if (currentMode === 'nationPopulation') gradient = NATION_POPULATION_GRADIENT;
   else if (currentMode === 'claims') gradient = CLAIMS_GRADIENT;
   else if (currentMode === 'nationClaims') gradient = NATION_CLAIMS_GRADIENT;
 
   if (gradient.length > 0) {
     // Add ranking legend for modes that support it
-    if (['population', 'claims', 'nationPopulation', 'nationClaims'].includes(currentMode)) {
+    if (['population', 'populationActive', 'claims', 'nationPopulation', 'nationClaims'].includes(currentMode)) {
       const rankingTitle = document.createElement('div');
       rankingTitle.className = 'font-bold mb-2';
       rankingTitle.textContent = t('rankings');

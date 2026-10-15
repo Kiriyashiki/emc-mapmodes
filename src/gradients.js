@@ -82,10 +82,12 @@ export const NATION_CLAIMS_GRADIENT = [
 ];
 
 export const DENSITY_STOPS = [
-  {val: 0.002, color: {r: 255, g: 255, b: 255}},
+  {val: 0.001, color: {r: 255, g: 255, b: 255}},
+  {val: 0.003, color: {r: 190, g: 190, b: 248}},
   {val: 0.01, color: {r: 144, g: 144, b: 238}},
-  {val: 0.03, color: {r: 82, g: 82, b: 206}},
-  {val: 0.1, color: {r: 39, g: 39, b: 178}},
+  {val: 0.03, color: {r: 92, g: 92, b: 206}},
+  {val: 0.1, color: {r: 54, g: 54, b: 178}},
+  {val: 0.3, color: {r: 32, g: 32, b: 154}},
   {val: 1, color: {r: 0, g: 0, b: 128}},
-  {val: 2, color: {r: 0, g: 0, b: 96}}
+  {val: 3, color: {r: 0, g: 0, b: 96}}
 ];

@@ -2,6 +2,8 @@ export const translations = {
   en: {
     name: "English",
     political: "Political",
+    populationActive: "Active Population",
+    populationActiveRank: "Active Population Rank",
     population: "Population",
     claims: "Claims",
     claimLimit: "Claim Limit",
@@ -55,6 +57,8 @@ export const translations = {
   ja: {
     name: "日本語",
     political: "政治的",
+    populationActive: "アクティブ人口",
+    populationActiveRank: "アクティブ人口ランク",
     population: "人口",
     claims: "チャンク",
     claimLimit: "チャンク制限",
@@ -108,6 +112,8 @@ export const translations = {
   fr: {
     name: "Français",
     political: "Politique",
+    populationActive: "Population Active",
+    populationActiveRank: "Rang de Population Active",
     population: "Population",
     claims: "Territoire",
     claimLimit: "Limite de Territoire",
@@ -161,6 +167,8 @@ export const translations = {
   id: {
     name: "Bahasa Indonesia",
     political: "Geopolitik",
+    populationActive: "Populasi Aktif",
+    populationActiveRank: "Peringkat Populasi Aktif",
     population: "Populasi",
     claims: "Luas Teritori",
     claimLimit: "Batas Klaim Teritori",
@@ -213,6 +221,8 @@ export const translations = {
   hi: {
     name: "हिंदी",
     political: "राजनीतिक",
+    populationActive: "सक्रिय जनसंख्या",
+    populationActiveRank: "सक्रिय जनसंख्या रैंक",
     population: "जनसंख्या",
     claims: "दावे",
     claimLimit: "दावों की सीमा",
