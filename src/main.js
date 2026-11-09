@@ -62,8 +62,7 @@ async function getTownData() {
 
 // Configuration
 const baseUrl = 'https://map.earthmc.net/tiles/minecraft_overworld';
-const baseUrlCors = `https://feur.hainaut.xyz/proxy?url=`;
-const baseUrlApi = `${baseUrlCors}https://api.earthmc.net/v4`
+const baseUrlApi = 'https://tools.hainaut.xyz/apiproxy/v4';
 const maxNativeZoom = 5;
 const maxZoom = 7;
 const minZoom = 0;
@@ -454,7 +453,7 @@ fetchMarkers()
   });
 
 function fetchMarkers() {
-  return fetch(`${baseUrlCors}${baseUrl}/markers.json`)
+  return fetch(`${baseUrl}/markers.json`)
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -463,15 +462,17 @@ function fetchMarkers() {
     });
 }
 
-// Helper function to fetch with timeout and retry
-async function fetchTownBatch(batch) {
-  const timeout = 5000; // 5 seconds
+// Fetch every town in one request. The proxy handles the GET town list and
+// upstream batching internally, and returns only the fields we ask for.
+async function fetchAllTownsFull() {
+  const timeout = 120000; // Cold cache can require several upstream batches
   const maxRetries = 1; // Retry once if failed
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let timeoutId;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      timeoutId = setTimeout(() => controller.abort(), timeout);
 
       const response = await fetch(`${baseUrlApi}/towns`, {
         method: 'POST',
@@ -479,7 +480,7 @@ async function fetchTownBatch(batch) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          query: batch,
+          full: true,
           template: {
             name: true,
             coordinates: true,
@@ -490,21 +491,21 @@ async function fetchTownBatch(batch) {
         signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        return Array.isArray(data) ? data : [];
-      } else {
+      if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       if (attempt < maxRetries) {
-        console.warn(`Attempt ${attempt + 1} failed for town batch, retrying...`, error);
+        console.warn(`Attempt ${attempt + 1} failed for full town fetch, retrying...`, error);
       } else {
-        console.error(`Failed to fetch town batch after ${maxRetries + 1} attempt(s):`, error);
+        console.error(`Failed to fetch all towns after ${maxRetries + 1} attempt(s):`, error);
         return [];
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
   return [];
@@ -526,31 +527,9 @@ async function loadTownDataAtStartup() {
       renderLayers();
       console.log('Loaded town data from cache.');
     } else {
-      // Cache is expired or doesn't exist, fetch fresh data from API
-      const townNames = processedMarkersData.map(item => item.popupData.name);
-      const results = [];
-      const batchSize = 100;
-      const maxParallel = 3; // Run up to 3 calls in parallel
-
-      // Create all batches
-      const batches = [];
-      for (let i = 0; i < townNames.length; i += batchSize) {
-        batches.push(townNames.slice(i, i + batchSize));
-      }
-
-      // Process batches in parallel groups
-      for (let i = 0; i < batches.length; i += maxParallel) {
-        const batchGroup = batches.slice(i, i + maxParallel);
-        const promises = batchGroup.map(batch => fetchTownBatch(batch));
-        const batchResults = await Promise.all(promises);
-
-        // Flatten and collect results
-        batchResults.forEach(batchData => {
-          if (Array.isArray(batchData)) {
-            results.push(...batchData);
-          }
-        });
-      }
+      // Cache is expired or doesn't exist, fetch fresh data from the proxy.
+      // The proxy's "full" option returns every town and caches each one.
+      const results = await fetchAllTownsFull();
 
       if (results.length > 0) {
         allTownsDataCache = results;
